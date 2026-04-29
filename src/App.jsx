@@ -526,7 +526,7 @@ export default function App() {
               <h2 className="text-sm font-bold text-teal-600 dark:text-teal-400 uppercase tracking-widest mb-6">Sovereign AI Architect Program</h2>
               
               <p className={`text-sm md:text-base leading-relaxed mb-10 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                Welcome to your personal learning portal and habit tracker. This platform is designed to guide you through a 26-month journey to master local AI infrastructure, track your weekly progressions, and build an elite technical moat. 
+                Welcome to your personal learning portal and Progress tracker. This platform is designed to guide you through a 26-month journey to master local AI infrastructure, track your weekly progressions, and build an elite technical moat. 
                 <br/><br/>
                 Please sign in to access the curriculum, save your progress securely to the cloud, and begin your transformation.
               </p>
