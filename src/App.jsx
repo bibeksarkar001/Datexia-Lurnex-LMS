@@ -9,13 +9,14 @@ import {
 
 // --- FIREBASE CONFIGURATION ---
 // IMPORTANT: Replace this entire object with your actual keys from Firebase Console
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+const firebaseConfig = {
+    apiKey: "AIzaSyDmK7CpdmsKCSj0-JEQXeNR78sy1SEMNAg",
+    authDomain: "datexia-lurnex-lms.firebaseapp.com",
+    projectId: "datexia-lurnex-lms",
+    storageBucket: "datexia-lurnex-lms.firebasestorage.app",
+    messagingSenderId: "642100250858",
+    appId: "1:642100250858:web:4a39556431eb572b8baf93",
+    measurementId: "G-K5TWLN8RF9"
 };
 
 const app = initializeApp(firebaseConfig);
