@@ -9,14 +9,13 @@ import {
 
 // --- FIREBASE CONFIGURATION ---
 // IMPORTANT: Replace this entire object with your actual keys from Firebase Console
- const firebaseConfig = {
-    apiKey: "AIzaSyDmK7CpdmsKCSj0-JEQXeNR78sy1SEMNAg",
-    authDomain: "datexia-lurnex-lms.firebaseapp.com",
-    projectId: "datexia-lurnex-lms",
-    storageBucket: "datexia-lurnex-lms.firebasestorage.app",
-    messagingSenderId: "642100250858",
-    appId: "1:642100250858:web:4a39556431eb572b8baf93",
-    measurementId: "G-K5TWLN8RF9"
+const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_STORAGE_BUCKET",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -457,7 +456,6 @@ export default function App() {
       return;
     }
     // Using the rule-compliant path: artifacts/{appId}/users/{userId}/tracking/data
-    // For a normal Firebase project, you could just use collectionId/{user.uid}
     const docPath = typeof __app_id !== 'undefined' 
       ? doc(db, 'artifacts', previewAppId, 'users', user.uid, 'tracking', 'data')
       : doc(db, collectionId, user.uid);
@@ -643,7 +641,7 @@ export default function App() {
             <div>
               <h3 className="text-2xl font-black flex items-center gap-3 uppercase tracking-wide mb-2"><BookOpen className="text-teal-500"/> Interactive Learning Curriculum</h3>
               <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                {user && (!user.isAnonymous || typeof __app_id !== 'undefined') ? "Track your progress week-by-week. Click a phase to expand the months." : "Sign in to track and save your progress week-by-week."}
+                {user ? "Track your progress week-by-week. Click a phase to expand the months." : "Sign in to track and save your progress week-by-week."}
               </p>
             </div>
             <div className={`px-6 py-3 rounded-xl border flex items-center gap-4 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
@@ -701,9 +699,9 @@ export default function App() {
                           
                           let mTotal = month.weeks.length + month.projects.length + 1;
                           let mDone = 0;
-                          month.weeks.forEach(w => progress[`${m.id}_${w.id}`] && mDone++);
-                          month.projects.forEach((_, i) => progress[`${m.id}_p${i}`] && mDone++);
-                          if (progress[`${m.id}_iq`]) mDone++;
+                          month.weeks.forEach(w => progress[`${month.id}_${w.id}`] && mDone++);
+                          month.projects.forEach((_, i) => progress[`${month.id}_p${i}`] && mDone++);
+                          if (progress[`${month.id}_iq`]) mDone++;
                           const isMonthComplete = mTotal === mDone && mTotal > 0;
 
                           return (
