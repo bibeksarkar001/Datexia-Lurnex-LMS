@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { 
   Sun, Moon, RotateCcw, ChevronDown, ChevronRight, CheckSquare, Square,
@@ -9,7 +9,7 @@ import {
 
 // --- FIREBASE CONFIGURATION ---
 // IMPORTANT: Replace this entire object with your actual keys from Firebase Console
-const firebaseConfig = {
+ const firebaseConfig = {
     apiKey: "AIzaSyDmK7CpdmsKCSj0-JEQXeNR78sy1SEMNAg",
     authDomain: "datexia-lurnex-lms.firebaseapp.com",
     projectId: "datexia-lurnex-lms",
@@ -24,6 +24,7 @@ const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 const db = getFirestore(app);
 const collectionId = 'datexia-lms';
+const previewAppId = typeof __app_id !== 'undefined' ? __app_id : 'datexia-lurnex-lms';
 
 // --- COURSE DATA ---
 const JOBS = [
@@ -432,6 +433,20 @@ export default function App() {
   }, [darkMode]);
 
   useEffect(() => {
+    // Only sign in anonymously if there is no custom token (for preview environment)
+    // For GitHub deployment, this will just listen for Google Auth state
+    const initAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else if (typeof __initial_auth_token !== 'undefined') {
+          // If we are in the preview environment, fall back to anonymous
+          await signInAnonymously(auth);
+        }
+      } catch (e) { console.error("Auth Error", e); }
+    };
+    initAuth();
+    
     const unsubAuth = onAuthStateChanged(auth, setUser);
     return () => unsubAuth();
   }, []);
@@ -441,8 +456,13 @@ export default function App() {
       setProgress({});
       return;
     }
-    const docRef = doc(db, collectionId, user.uid);
-    const unsub = onSnapshot(docRef, (snap) => {
+    // Using the rule-compliant path: artifacts/{appId}/users/{userId}/tracking/data
+    // For a normal Firebase project, you could just use collectionId/{user.uid}
+    const docPath = typeof __app_id !== 'undefined' 
+      ? doc(db, 'artifacts', previewAppId, 'users', user.uid, 'tracking', 'data')
+      : doc(db, collectionId, user.uid);
+
+    const unsub = onSnapshot(docPath, (snap) => {
       if (snap.exists()) setProgress(snap.data().state || {});
       else setProgress({});
     });
@@ -454,7 +474,7 @@ export default function App() {
       await signInWithPopup(auth, provider);
     } catch (error) {
       console.error("Login failed:", error);
-      alert("Failed to log in. Please check your console.");
+      alert("Failed to log in with Google. Check console.");
     }
   };
 
@@ -467,19 +487,26 @@ export default function App() {
   };
 
   const toggleProgress = async (key) => {
-    if (!user) {
+    // Require real authentication if not in preview environment
+    if (!user || (user.isAnonymous && typeof __initial_auth_token === 'undefined')) {
       alert("Please sign in with Google to save your progress!");
       return;
     }
     const newState = { ...progress, [key]: !progress[key] };
-    const docRef = doc(db, collectionId, user.uid);
-    await setDoc(docRef, { state: newState }, { merge: true });
+    const docPath = typeof __app_id !== 'undefined' 
+      ? doc(db, 'artifacts', previewAppId, 'users', user.uid, 'tracking', 'data')
+      : doc(db, collectionId, user.uid);
+      
+    await setDoc(docPath, { state: newState }, { merge: true });
   };
 
   const resetProgress = async () => {
     if (!user) return;
-    const docRef = doc(db, collectionId, user.uid);
-    await setDoc(docRef, { state: {} });
+    const docPath = typeof __app_id !== 'undefined' 
+      ? doc(db, 'artifacts', previewAppId, 'users', user.uid, 'tracking', 'data')
+      : doc(db, collectionId, user.uid);
+      
+    await setDoc(docPath, { state: {} });
     setShowReset(false);
   };
 
@@ -516,12 +543,18 @@ export default function App() {
               <button onClick={() => setDarkMode(false)} className={`p-2 rounded-md transition-all ${!darkMode ? 'bg-white shadow-sm text-amber-500' : 'text-slate-500'}`}><Sun size={18} /></button>
               <button onClick={() => setDarkMode(true)} className={`p-2 rounded-md transition-all ${darkMode ? 'bg-slate-800 shadow-sm text-indigo-400' : 'text-slate-500'}`}><Moon size={18} /></button>
             </div>
-            {user ? (
+            
+            {/* Show Logout if user is logged in AND they are not anonymous (unless in preview environment where anonymous is allowed) */}
+            {user && (!user.isAnonymous || typeof __app_id !== 'undefined') ? (
                 <div className="flex items-center gap-2">
                    <button onClick={() => setShowReset(true)} className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all hidden sm:block" title="Reset Progress"><RotateCcw size={20} /></button>
-                   <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors text-sm font-bold">
-                     <LogOut size={16} /> <span className="hidden sm:inline">Logout</span>
-                   </button>
+                   
+                   {/* Only show logout button if they used Google Auth (not anonymous) */}
+                   {!user.isAnonymous && (
+                     <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors text-sm font-bold">
+                       <LogOut size={16} /> <span className="hidden sm:inline">Logout</span>
+                     </button>
+                   )}
                 </div>
             ) : (
                 <button onClick={handleLogin} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white transition-colors text-sm font-bold shadow-lg shadow-teal-500/20">
@@ -610,7 +643,7 @@ export default function App() {
             <div>
               <h3 className="text-2xl font-black flex items-center gap-3 uppercase tracking-wide mb-2"><BookOpen className="text-teal-500"/> Interactive Learning Curriculum</h3>
               <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                {user ? "Track your progress week-by-week. Click a phase to expand the months." : "Sign in to track and save your progress week-by-week."}
+                {user && (!user.isAnonymous || typeof __app_id !== 'undefined') ? "Track your progress week-by-week. Click a phase to expand the months." : "Sign in to track and save your progress week-by-week."}
               </p>
             </div>
             <div className={`px-6 py-3 rounded-xl border flex items-center gap-4 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
