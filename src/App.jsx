@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { 
   Sun, Moon, RotateCcw, ChevronDown, ChevronRight, CheckSquare, Square,
@@ -9,13 +9,14 @@ import {
 
 // --- FIREBASE CONFIGURATION ---
 // IMPORTANT: Replace this entire object with your actual keys from Firebase Console
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+const firebaseConfig = {
+    apiKey: "AIzaSyDmK7CpdmsKCSj0-JEQXeNR78sy1SEMNAg",
+    authDomain: "datexia-lurnex-lms.firebaseapp.com",
+    projectId: "datexia-lurnex-lms",
+    storageBucket: "datexia-lurnex-lms.firebasestorage.app",
+    messagingSenderId: "642100250858",
+    appId: "1:642100250858:web:4a39556431eb572b8baf93",
+    measurementId: "G-K5TWLN8RF9"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -23,7 +24,6 @@ const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 const db = getFirestore(app);
 const collectionId = 'datexia-lms';
-const previewAppId = typeof __app_id !== 'undefined' ? __app_id : 'datexia-lurnex-lms';
 
 // --- COURSE DATA ---
 const JOBS = [
@@ -425,42 +425,31 @@ export default function App() {
   const [activePhase, setActivePhase] = useState("p1");
   const [activeMonth, setActiveMonth] = useState(null);
   const [showReset, setShowReset] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
 
+  // Theme Init
   useEffect(() => {
     if (darkMode) document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
   }, [darkMode]);
 
+  // Auth Listener
   useEffect(() => {
-    // Only sign in anonymously if there is no custom token (for preview environment)
-    // For GitHub deployment, this will just listen for Google Auth state
-    const initAuth = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else if (typeof __initial_auth_token !== 'undefined') {
-          // If we are in the preview environment, fall back to anonymous
-          await signInAnonymously(auth);
-        }
-      } catch (e) { console.error("Auth Error", e); }
-    };
-    initAuth();
-    
-    const unsubAuth = onAuthStateChanged(auth, setUser);
+    const unsubAuth = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setIsAuthLoading(false);
+    });
     return () => unsubAuth();
   }, []);
 
+  // Database Listener
   useEffect(() => {
     if (!user) {
       setProgress({});
       return;
     }
-    // Using the rule-compliant path: artifacts/{appId}/users/{userId}/tracking/data
-    const docPath = typeof __app_id !== 'undefined' 
-      ? doc(db, 'artifacts', previewAppId, 'users', user.uid, 'tracking', 'data')
-      : doc(db, collectionId, user.uid);
-
-    const unsub = onSnapshot(docPath, (snap) => {
+    const docRef = doc(db, collectionId, user.uid);
+    const unsub = onSnapshot(docRef, (snap) => {
       if (snap.exists()) setProgress(snap.data().state || {});
       else setProgress({});
     });
@@ -472,7 +461,7 @@ export default function App() {
       await signInWithPopup(auth, provider);
     } catch (error) {
       console.error("Login failed:", error);
-      alert("Failed to log in with Google. Check console.");
+      alert("Failed to log in. Please check your console.");
     }
   };
 
@@ -485,26 +474,15 @@ export default function App() {
   };
 
   const toggleProgress = async (key) => {
-    // Require real authentication if not in preview environment
-    if (!user || (user.isAnonymous && typeof __initial_auth_token === 'undefined')) {
-      alert("Please sign in with Google to save your progress!");
-      return;
-    }
     const newState = { ...progress, [key]: !progress[key] };
-    const docPath = typeof __app_id !== 'undefined' 
-      ? doc(db, 'artifacts', previewAppId, 'users', user.uid, 'tracking', 'data')
-      : doc(db, collectionId, user.uid);
-      
-    await setDoc(docPath, { state: newState }, { merge: true });
+    const docRef = doc(db, collectionId, user.uid);
+    await setDoc(docRef, { state: newState }, { merge: true });
   };
 
   const resetProgress = async () => {
     if (!user) return;
-    const docPath = typeof __app_id !== 'undefined' 
-      ? doc(db, 'artifacts', previewAppId, 'users', user.uid, 'tracking', 'data')
-      : doc(db, collectionId, user.uid);
-      
-    await setDoc(docPath, { state: {} });
+    const docRef = doc(db, collectionId, user.uid);
+    await setDoc(docRef, { state: {} });
     setShowReset(false);
   };
 
@@ -518,6 +496,54 @@ export default function App() {
     return { total, completed, percent };
   }, [progress]);
 
+  // --- LOADING SCREEN ---
+  if (isAuthLoading) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center ${darkMode ? 'bg-slate-950' : 'bg-slate-50'}`}>
+        <Zap className="animate-pulse w-12 h-12 text-teal-500" />
+      </div>
+    );
+  }
+
+  // --- LANDING PAGE (LOGIN WALL) ---
+  if (!user) {
+    return (
+      <div className={`min-h-screen flex flex-col transition-colors duration-300 font-sans ${darkMode ? 'bg-slate-950 text-slate-200' : 'bg-slate-50 text-slate-800'}`}>
+         {/* Minimal Nav for Theme Toggle */}
+         <nav className="p-6 flex justify-end">
+           <div className={`flex rounded-lg p-1 ${darkMode ? 'bg-slate-900' : 'bg-slate-200'}`}>
+              <button onClick={() => setDarkMode(false)} className={`p-2 rounded-md transition-all ${!darkMode ? 'bg-white shadow-sm text-amber-500' : 'text-slate-500'}`}><Sun size={18} /></button>
+              <button onClick={() => setDarkMode(true)} className={`p-2 rounded-md transition-all ${darkMode ? 'bg-slate-800 shadow-sm text-indigo-400' : 'text-slate-500'}`}><Moon size={18} /></button>
+           </div>
+         </nav>
+
+         <div className="flex-1 flex items-center justify-center p-6">
+           <div className={`max-w-xl w-full p-10 md:p-12 rounded-[3rem] border text-center shadow-2xl ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+              <div className="w-20 h-20 bg-teal-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-lg shadow-teal-500/30">
+                 <Cpu size={40} className="text-white" />
+              </div>
+              <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-4">Datexia Lurnex LMS</h1>
+              <h2 className="text-sm font-bold text-teal-600 dark:text-teal-400 uppercase tracking-widest mb-6">Sovereign AI Architect Program</h2>
+              
+              <p className={`text-sm md:text-base leading-relaxed mb-10 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                Welcome to your personal learning portal and habit tracker. This platform is designed to guide you through a 26-month journey to master local AI infrastructure, track your weekly progressions, and build an elite technical moat. 
+                <br/><br/>
+                Please sign in to access the curriculum, save your progress securely to the cloud, and begin your transformation.
+              </p>
+
+              <button 
+                onClick={handleLogin} 
+                className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl font-black text-lg transition-all shadow-xl shadow-teal-500/20"
+              >
+                <LogIn size={24} /> Sign in with Google
+              </button>
+           </div>
+         </div>
+      </div>
+    );
+  }
+
+  // --- FULL LMS APPLICATION (AUTHENTICATED ONLY) ---
   return (
     <div className={`min-h-screen transition-colors duration-300 font-sans ${darkMode ? 'bg-slate-950 text-slate-200' : 'bg-slate-50 text-slate-800'}`}>
       
@@ -527,7 +553,8 @@ export default function App() {
           <div className="flex items-center gap-3">
             <div className="bg-teal-600 p-2 rounded-lg text-white"><Cpu size={24} /></div>
             <div>
-              <h1 className="font-bold text-lg leading-tight uppercase tracking-wide">Datexia Lurnex LMS</h1>
+              <h1 className="font-bold text-lg leading-tight uppercase tracking-wide hidden sm:block">Datexia Lurnex LMS</h1>
+              <h1 className="font-bold text-lg leading-tight uppercase tracking-wide sm:hidden">Datexia LMS</h1>
               <p className="text-xs text-teal-600 dark:text-teal-400 font-semibold tracking-widest">Sovereign AI Architect</p>
             </div>
           </div>
@@ -542,23 +569,12 @@ export default function App() {
               <button onClick={() => setDarkMode(true)} className={`p-2 rounded-md transition-all ${darkMode ? 'bg-slate-800 shadow-sm text-indigo-400' : 'text-slate-500'}`}><Moon size={18} /></button>
             </div>
             
-            {/* Show Logout if user is logged in AND they are not anonymous (unless in preview environment where anonymous is allowed) */}
-            {user && (!user.isAnonymous || typeof __app_id !== 'undefined') ? (
-                <div className="flex items-center gap-2">
-                   <button onClick={() => setShowReset(true)} className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all hidden sm:block" title="Reset Progress"><RotateCcw size={20} /></button>
-                   
-                   {/* Only show logout button if they used Google Auth (not anonymous) */}
-                   {!user.isAnonymous && (
-                     <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors text-sm font-bold">
-                       <LogOut size={16} /> <span className="hidden sm:inline">Logout</span>
-                     </button>
-                   )}
-                </div>
-            ) : (
-                <button onClick={handleLogin} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white transition-colors text-sm font-bold shadow-lg shadow-teal-500/20">
-                  <LogIn size={16} /> Sign In
-                </button>
-            )}
+            <div className="flex items-center gap-2">
+               <button onClick={() => setShowReset(true)} className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all hidden sm:block" title="Reset Progress"><RotateCcw size={20} /></button>
+               <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors text-sm font-bold">
+                 <LogOut size={16} /> <span className="hidden sm:inline">Logout</span>
+               </button>
+            </div>
           </div>
         </div>
       </nav>
@@ -641,7 +657,7 @@ export default function App() {
             <div>
               <h3 className="text-2xl font-black flex items-center gap-3 uppercase tracking-wide mb-2"><BookOpen className="text-teal-500"/> Interactive Learning Curriculum</h3>
               <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                {user ? "Track your progress week-by-week. Click a phase to expand the months." : "Sign in to track and save your progress week-by-week."}
+                Track your progress week-by-week. Click a phase to expand the months.
               </p>
             </div>
             <div className={`px-6 py-3 rounded-xl border flex items-center gap-4 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
@@ -699,9 +715,9 @@ export default function App() {
                           
                           let mTotal = month.weeks.length + month.projects.length + 1;
                           let mDone = 0;
-                          month.weeks.forEach(w => progress[`${month.id}_${w.id}`] && mDone++);
-                          month.projects.forEach((_, i) => progress[`${month.id}_p${i}`] && mDone++);
-                          if (progress[`${month.id}_iq`]) mDone++;
+                          month.weeks.forEach(w => progress[`${m.id}_${w.id}`] && mDone++);
+                          month.projects.forEach((_, i) => progress[`${m.id}_p${i}`] && mDone++);
+                          if (progress[`${m.id}_iq`]) mDone++;
                           const isMonthComplete = mTotal === mDone && mTotal > 0;
 
                           return (
