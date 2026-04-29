@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { 
   Sun, Moon, RotateCcw, ChevronDown, ChevronRight, CheckSquare, Square,
@@ -24,7 +24,6 @@ const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 const db = getFirestore(app);
 const collectionId = 'datexia-lms';
-const previewAppId = typeof __app_id !== 'undefined' ? __app_id : 'datexia-lurnex-lms';
 
 // --- COURSE DATA ---
 const JOBS = [
@@ -433,20 +432,6 @@ export default function App() {
   }, [darkMode]);
 
   useEffect(() => {
-    // Only sign in anonymously if there is no custom token (for preview environment)
-    // For GitHub deployment, this will just listen for Google Auth state
-    const initAuth = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else if (typeof __initial_auth_token !== 'undefined') {
-          // If we are in the preview environment, fall back to anonymous
-          await signInAnonymously(auth);
-        }
-      } catch (e) { console.error("Auth Error", e); }
-    };
-    initAuth();
-    
     const unsubAuth = onAuthStateChanged(auth, setUser);
     return () => unsubAuth();
   }, []);
@@ -456,13 +441,8 @@ export default function App() {
       setProgress({});
       return;
     }
-    // Using the rule-compliant path: artifacts/{appId}/users/{userId}/tracking/data
-    // For a normal Firebase project, you could just use collectionId/{user.uid}
-    const docPath = typeof __app_id !== 'undefined' 
-      ? doc(db, 'artifacts', previewAppId, 'users', user.uid, 'tracking', 'data')
-      : doc(db, collectionId, user.uid);
-
-    const unsub = onSnapshot(docPath, (snap) => {
+    const docRef = doc(db, collectionId, user.uid);
+    const unsub = onSnapshot(docRef, (snap) => {
       if (snap.exists()) setProgress(snap.data().state || {});
       else setProgress({});
     });
@@ -474,7 +454,7 @@ export default function App() {
       await signInWithPopup(auth, provider);
     } catch (error) {
       console.error("Login failed:", error);
-      alert("Failed to log in with Google. Check console.");
+      alert("Failed to log in. Please check your console.");
     }
   };
 
@@ -487,26 +467,19 @@ export default function App() {
   };
 
   const toggleProgress = async (key) => {
-    // Require real authentication if not in preview environment
-    if (!user || (user.isAnonymous && typeof __initial_auth_token === 'undefined')) {
+    if (!user) {
       alert("Please sign in with Google to save your progress!");
       return;
     }
     const newState = { ...progress, [key]: !progress[key] };
-    const docPath = typeof __app_id !== 'undefined' 
-      ? doc(db, 'artifacts', previewAppId, 'users', user.uid, 'tracking', 'data')
-      : doc(db, collectionId, user.uid);
-      
-    await setDoc(docPath, { state: newState }, { merge: true });
+    const docRef = doc(db, collectionId, user.uid);
+    await setDoc(docRef, { state: newState }, { merge: true });
   };
 
   const resetProgress = async () => {
     if (!user) return;
-    const docPath = typeof __app_id !== 'undefined' 
-      ? doc(db, 'artifacts', previewAppId, 'users', user.uid, 'tracking', 'data')
-      : doc(db, collectionId, user.uid);
-      
-    await setDoc(docPath, { state: {} });
+    const docRef = doc(db, collectionId, user.uid);
+    await setDoc(docRef, { state: {} });
     setShowReset(false);
   };
 
@@ -516,4 +489,295 @@ export default function App() {
       total += m.weeks.length + m.projects.length + 1; // +1 for IQ
     }));
     const completed = Object.values(progress).filter(Boolean).length;
-    const percent = total > 0 ? Math.round((completed / total
+    const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return { total, completed, percent };
+  }, [progress]);
+
+  return (
+    <div className={`min-h-screen transition-colors duration-300 font-sans ${darkMode ? 'bg-slate-950 text-slate-200' : 'bg-slate-50 text-slate-800'}`}>
+      
+      {/* NAVIGATION */}
+      <nav className={`sticky top-0 z-50 border-b backdrop-blur-xl px-6 py-4 ${darkMode ? 'bg-slate-950/80 border-slate-800' : 'bg-white/80 border-slate-200'}`}>
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-teal-600 p-2 rounded-lg text-white"><Cpu size={24} /></div>
+            <div>
+              <h1 className="font-bold text-lg leading-tight uppercase tracking-wide">Datexia Lurnex LMS</h1>
+              <p className="text-xs text-teal-600 dark:text-teal-400 font-semibold tracking-widest">Sovereign AI Architect</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            <div className="hidden md:flex flex-col items-end mr-4">
+              <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Program Completion</span>
+              <span className="text-lg font-mono font-bold text-teal-500 leading-none">{stats.percent}%</span>
+            </div>
+            <div className={`flex rounded-lg p-1 ${darkMode ? 'bg-slate-900' : 'bg-slate-100'}`}>
+              <button onClick={() => setDarkMode(false)} className={`p-2 rounded-md transition-all ${!darkMode ? 'bg-white shadow-sm text-amber-500' : 'text-slate-500'}`}><Sun size={18} /></button>
+              <button onClick={() => setDarkMode(true)} className={`p-2 rounded-md transition-all ${darkMode ? 'bg-slate-800 shadow-sm text-indigo-400' : 'text-slate-500'}`}><Moon size={18} /></button>
+            </div>
+            {user ? (
+                <div className="flex items-center gap-2">
+                   <button onClick={() => setShowReset(true)} className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all hidden sm:block" title="Reset Progress"><RotateCcw size={20} /></button>
+                   <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors text-sm font-bold">
+                     <LogOut size={16} /> <span className="hidden sm:inline">Logout</span>
+                   </button>
+                </div>
+            ) : (
+                <button onClick={handleLogin} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white transition-colors text-sm font-bold shadow-lg shadow-teal-500/20">
+                  <LogIn size={16} /> Sign In
+                </button>
+            )}
+          </div>
+        </div>
+      </nav>
+
+      {/* HERO SECTION */}
+      <header className={`py-16 md:py-24 px-6 border-b ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-4xl md:text-5xl font-black mb-8 tracking-tight">From API Consumer to<br/> <span className="text-teal-600 dark:text-teal-400">Sovereign Architect</span></h2>
+          <div className={`text-lg md:text-xl leading-relaxed mb-10 space-y-6 text-left max-w-3xl mx-auto ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+            <p>
+              The transition from the era of centralized, cloud-dependent artificial intelligence to a decentralized, local, and sovereign framework represents the most significant paradigm shift in the technological landscape of 2026. Data privacy, latency, and soaring inference costs have forced enterprises to abandon public APIs in favor of self-hosted solutions.
+            </p>
+            <p>
+              This elite, 26-month pedagogical system moves you beyond the superficial "API-level" of AI consumption and dives deep into the "Kernel-level" of creation. By focusing on the full 17-layer operating system model—from raw hardware provisioning and CUDA/NVIDIA optimizations to the orchestration of autonomous, multi-agent swarms—you will build an impenetrable technical moat.
+            </p>
+            <p>
+              Integrating elite mathematical intuition from MIT and Harvard with the raw engineering power of GitHub and local hardware optimization, the <strong>Datexia Lurnex LMS</strong> guarantees a career resilient to the commoditization of base models. By the end of this transformative journey, you will not just be "using AI"—you will own the factory that produces it.
+            </p>
+          </div>
+          <div className="flex flex-wrap justify-center gap-6 text-sm font-bold uppercase tracking-widest">
+            <div className="flex items-center gap-2"><Zap className="text-amber-500" /> 26 Months</div>
+            <div className="flex items-center gap-2"><Code className="text-teal-500" /> 26 Projects</div>
+            <div className="flex items-center gap-2"><Briefcase className="text-indigo-500" /> Top Decile Placement</div>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-6 py-16 space-y-24">
+        
+        {/* CAREER SECTION */}
+        <section>
+          <h3 className="text-2xl font-black mb-8 flex items-center gap-3 uppercase tracking-wide"><Briefcase className="text-teal-500"/> 2026 Job Roles & Benchmarks</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {JOBS.map((job, idx) => (
+              <div key={idx} className={`p-6 rounded-2xl border transition-all hover:shadow-lg ${darkMode ? 'bg-slate-900 border-slate-800 hover:border-teal-500/50' : 'bg-white border-slate-200 hover:border-teal-500'}`}>
+                <h4 className="font-bold text-lg mb-1">{job.role}</h4>
+                <p className="text-teal-600 dark:text-teal-400 font-mono font-bold mb-3">{job.pay}</p>
+                <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>{job.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* PROJECT ROADMAP TABLE */}
+        <section>
+          <h3 className="text-2xl font-black mb-8 flex items-center gap-3 uppercase tracking-wide"><Terminal className="text-teal-500"/> Complete Project Roadmap</h3>
+          <div className={`overflow-x-auto rounded-2xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className={`uppercase text-xs tracking-widest border-b ${darkMode ? 'bg-slate-950 text-slate-500 border-slate-800' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
+                  <th className="p-4">Phase</th>
+                  <th className="p-4">Month</th>
+                  <th className="p-4">Project Name</th>
+                  <th className="p-4">Difficulty</th>
+                  <th className="p-4">Core Focus</th>
+                </tr>
+              </thead>
+              <tbody className="text-sm">
+                {PROJECTS.map((p, idx) => (
+                  <tr key={idx} className={`border-b last:border-0 ${darkMode ? 'border-slate-800 hover:bg-slate-800/50' : 'border-slate-100 hover:bg-slate-50'}`}>
+                    <td className="p-4 font-bold opacity-70">{p.phase}</td>
+                    <td className="p-4 font-mono">{p.m}</td>
+                    <td className="p-4 font-bold">{p.name}</td>
+                    <td className="p-4">
+                      <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase ${p.diff === 'Master' ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400' : p.diff === 'Advanced' ? 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400' : p.diff === 'Intermediate' ? 'bg-teal-500/20 text-teal-600 dark:text-teal-400' : 'bg-slate-500/20 text-slate-600 dark:text-slate-400'}`}>
+                        {p.diff}
+                      </span>
+                    </td>
+                    <td className="p-4 opacity-80">{p.focus}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* INTERACTIVE COURSE TRACKER */}
+        <section id="tracker">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+            <div>
+              <h3 className="text-2xl font-black flex items-center gap-3 uppercase tracking-wide mb-2"><BookOpen className="text-teal-500"/> Interactive Learning Curriculum</h3>
+              <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                {user ? "Track your progress week-by-week. Click a phase to expand the months." : "Sign in to track and save your progress week-by-week."}
+              </p>
+            </div>
+            <div className={`px-6 py-3 rounded-xl border flex items-center gap-4 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+               <div className="flex flex-col">
+                 <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Tasks Completed</span>
+                 <span className="font-mono font-bold text-lg leading-none">{stats.completed} / {stats.total}</span>
+               </div>
+               <div className="w-24 h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                 <div className="h-full bg-teal-500 transition-all duration-500" style={{width: `${stats.percent}%`}} />
+               </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {CURRICULUM.map((phase) => {
+              const isPhaseOpen = activePhase === phase.phaseId;
+              
+              let pTotal = 0; let pDone = 0;
+              phase.months.forEach(m => {
+                pTotal += m.weeks.length + m.projects.length + 1;
+                m.weeks.forEach(w => progress[`${m.id}_${w.id}`] && pDone++);
+                m.projects.forEach((_, i) => progress[`${m.id}_p${i}`] && pDone++);
+                if (progress[`${m.id}_iq`]) pDone++;
+              });
+              const pPercent = pTotal > 0 ? Math.round((pDone/pTotal)*100) : 0;
+
+              return (
+                <div key={phase.phaseId} className={`rounded-2xl border transition-all ${darkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'} ${isPhaseOpen ? 'ring-2 ring-teal-500/20' : ''}`}>
+                  
+                  <div 
+                    onClick={() => setActivePhase(isPhaseOpen ? null : phase.phaseId)}
+                    className="p-6 cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4 select-none"
+                  >
+                    <div>
+                      <h4 className="font-black text-xl mb-1">{phase.title}</h4>
+                      <div className="flex items-center gap-3 text-sm opacity-70">
+                         <span className="font-mono bg-teal-500/10 text-teal-600 dark:text-teal-400 px-2 py-0.5 rounded font-bold">{phase.duration}</span>
+                         <span>Goal: {phase.goal}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-6">
+                      <div className="flex flex-col items-end hidden sm:flex">
+                        <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Phase Progress</span>
+                        <span className="font-mono font-bold text-teal-500">{pPercent}%</span>
+                      </div>
+                      {isPhaseOpen ? <ChevronDown size={24} className="opacity-50" /> : <ChevronRight size={24} className="opacity-50" />}
+                    </div>
+                  </div>
+
+                  {isPhaseOpen && (
+                    <div className={`p-6 pt-0 border-t ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+                      <div className="mt-6 space-y-4">
+                        {phase.months.map((month) => {
+                          const isMonthOpen = activeMonth === month.id;
+                          
+                          let mTotal = month.weeks.length + month.projects.length + 1;
+                          let mDone = 0;
+                          month.weeks.forEach(w => progress[`${m.id}_${w.id}`] && mDone++);
+                          month.projects.forEach((_, i) => progress[`${m.id}_p${i}`] && mDone++);
+                          if (progress[`${m.id}_iq`]) mDone++;
+                          const isMonthComplete = mTotal === mDone && mTotal > 0;
+
+                          return (
+                            <div key={month.id} className={`rounded-xl border overflow-hidden transition-all ${darkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                              
+                              <div 
+                                onClick={() => setActiveMonth(isMonthOpen ? null : month.id)}
+                                className={`p-5 cursor-pointer flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${isMonthComplete ? 'bg-teal-500/5' : ''}`}
+                              >
+                                <div className="flex items-center gap-4">
+                                  {isMonthComplete ? <ShieldCheck className="text-teal-500" size={24} /> : <div className="w-6 h-6 rounded-full border-2 border-slate-400 dark:border-slate-600" />}
+                                  <h5 className="font-bold text-lg">{month.title}</h5>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                  <span className="text-xs font-mono opacity-60">{mDone}/{mTotal}</span>
+                                  {isMonthOpen ? <ChevronDown size={20} className="opacity-50" /> : <ChevronRight size={20} className="opacity-50" />}
+                                </div>
+                              </div>
+
+                              {isMonthOpen && (
+                                <div className={`p-6 border-t ${darkMode ? 'border-slate-800 bg-slate-900/50' : 'border-slate-200 bg-white'}`}>
+                                  
+                                  <div className={`mb-8 p-5 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-4 ${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                                    <div>
+                                      <p className="text-[10px] font-bold uppercase tracking-widest text-teal-600 dark:text-teal-400 mb-1">Primary Study Material & Certification</p>
+                                      <p className="font-bold">{month.course}</p>
+                                    </div>
+                                    <a href={month.link} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-teal-500/20 whitespace-nowrap">
+                                      <GraduationCap size={18} /> Apply / Read
+                                    </a>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div>
+                                      <h6 className="text-xs font-black uppercase tracking-widest opacity-50 mb-4 flex items-center gap-2"><BookOpen size={14}/> Weekly Curriculum</h6>
+                                      <div className="space-y-2">
+                                        {month.weeks.map(w => {
+                                          const key = `${month.id}_${w.id}`;
+                                          const isChecked = progress[key];
+                                          return (
+                                            <div key={w.id} onClick={() => toggleProgress(key)} className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer border transition-colors ${isChecked ? 'bg-teal-500/10 border-teal-500/30' : darkMode ? 'bg-slate-950 border-slate-800 hover:border-slate-600' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
+                                              <div className="mt-0.5">{isChecked ? <CheckSquare className="text-teal-500" size={18} /> : <Square className="opacity-30" size={18} />}</div>
+                                              <span className={`text-sm font-medium ${isChecked ? 'opacity-100 text-teal-700 dark:text-teal-300' : 'opacity-80'}`}>{w.text}</span>
+                                            </div>
+                                          )
+                                        })}
+                                      </div>
+                                    </div>
+
+                                    <div>
+                                      <h6 className="text-xs font-black uppercase tracking-widest opacity-50 mb-4 flex items-center gap-2"><Code size={14}/> Projects & Neuro-Sync</h6>
+                                      <div className="space-y-2 mb-6">
+                                        {month.projects.map((proj, i) => {
+                                          const key = `${month.id}_p${i}`;
+                                          const isChecked = progress[key];
+                                          return (
+                                            <div key={i} onClick={() => toggleProgress(key)} className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer border transition-colors ${isChecked ? 'bg-indigo-500/10 border-indigo-500/30' : darkMode ? 'bg-slate-950 border-slate-800 hover:border-slate-600' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
+                                              <div>{isChecked ? <CheckSquare className="text-indigo-500" size={18} /> : <Square className="opacity-30" size={18} />}</div>
+                                              <span className={`text-sm font-bold ${isChecked ? 'text-indigo-700 dark:text-indigo-300' : ''}`}>Project: {proj}</span>
+                                            </div>
+                                          )
+                                        })}
+                                      </div>
+                                      
+                                      <div 
+                                        onClick={() => toggleProgress(`${month.id}_iq`)} 
+                                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer border transition-colors ${progress[`${month.id}_iq`] ? 'bg-amber-500/10 border-amber-500/30' : darkMode ? 'bg-slate-950 border-slate-800 hover:border-slate-600' : 'bg-white border-slate-200 hover:border-slate-300'}`}
+                                      >
+                                          <div>{progress[`${month.id}_iq`] ? <CheckSquare className="text-amber-500" size={18} /> : <Square className="opacity-30" size={18} />}</div>
+                                          <span className={`text-sm font-bold flex items-center gap-2 ${progress[`${month.id}_iq`] ? 'text-amber-700 dark:text-amber-300' : ''}`}><Brain size={16}/> {month.iq}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      </main>
+
+      {/* RESET MODAL */}
+      {showReset && (
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className={`max-w-sm w-full p-8 rounded-3xl shadow-2xl ${darkMode ? 'bg-slate-900 border border-slate-800' : 'bg-white'}`}>
+            <div className="bg-red-500/10 text-red-500 w-16 h-16 rounded-full flex items-center justify-center mb-6 mx-auto">
+              <RotateCcw size={32} />
+            </div>
+            <h3 className="text-2xl font-black text-center mb-2">Reset Tracking?</h3>
+            <p className="text-center opacity-70 mb-8 text-sm">This will clear all your checkboxes across all 26 months. This action cannot be undone.</p>
+            <div className="flex gap-4">
+              <button onClick={() => setShowReset(false)} className={`flex-1 py-3 rounded-xl font-bold transition-colors ${darkMode ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-800'}`}>Cancel</button>
+              <button onClick={resetProgress} className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold shadow-lg shadow-red-600/20 transition-all">Reset All</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
