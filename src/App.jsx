@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { 
   Sun, Moon, RotateCcw, ChevronDown, ChevronRight, CheckSquare, Square,
@@ -8,9 +8,8 @@ import {
 } from 'lucide-react';
 
 // --- FIREBASE CONFIGURATION ---
-// Carefully replace the "YOUR_..." text below with your actual keys.
-// Do not delete the quotation marks or the commas!
-const firebaseConfig = {
+// IMPORTANT: Replace this entire object with your actual keys from Firebase Console
+ const firebaseConfig = {
     apiKey: "AIzaSyDmK7CpdmsKCSj0-JEQXeNR78sy1SEMNAg",
     authDomain: "datexia-lurnex-lms.firebaseapp.com",
     projectId: "datexia-lurnex-lms",
@@ -25,6 +24,7 @@ const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 const db = getFirestore(app);
 const collectionId = 'datexia-lms';
+const previewAppId = typeof __app_id !== 'undefined' ? __app_id : 'datexia-lurnex-lms';
 
 // --- COURSE DATA ---
 const JOBS = [
@@ -75,7 +75,8 @@ const CURRICULUM = [
     months: [
       {
         id: "m1", title: "Month 1: The Linux Shell & Hardware Provisioning",
-        course: "Essential Developer Tools: Terminal and UNIX (Rithm School)", link: "https://www.rithmschool.com/courses/",
+        description: "Lay the bedrock of your local infrastructure. In this month, you will master the Unix shell, manage rigorous server permissions, and establish the base environment required for advanced GPU orchestration.",
+        course: "Essential Developer Tools: Terminal and UNIX", link: "https://www.rithmschool.com/courses/terminal/",
         weeks: [
           { id: "w1", text: "Week 1: Unix Shell (Bash/Zsh) & Navigation" },
           { id: "w2", text: "Week 2: File permissions & SSH" },
@@ -87,7 +88,8 @@ const CURRICULUM = [
       },
       {
         id: "m2", title: "Month 2: Full-Stack Web Logic",
-        course: "Introduction to HTML, CSS, & JavaScript (IBM/Coursera)", link: "https://www.coursera.org/learn/introduction-to-html-css-javascript",
+        description: "Construct the visual layer of your Cyber Factory. You will learn to build responsive, data-rich web interfaces that allow you to monitor hardware health and model inference in real-time.",
+        course: "HTML, CSS, and Javascript for Web Developers", link: "https://www.coursera.org/learn/html-css-javascript-for-web-developers",
         weeks: [
           { id: "w1", text: "Week 1: Semantic HTML5" },
           { id: "w2", text: "Week 2: CSS3 Grid & Flexbox" },
@@ -99,7 +101,8 @@ const CURRICULUM = [
       },
       {
         id: "m3", title: "Month 3: GitHub Mastery & Analytics",
-        course: "Getting Started with Git and GitHub (IBM)", link: "https://www.coursera.org/learn/getting-started-with-git-and-github",
+        description: "Establish your professional version control lifecycle. You will master branch management and integrate Python analytics to profile your operational data and code repositories.",
+        course: "Introduction to Git and GitHub", link: "https://www.coursera.org/learn/introduction-git-github",
         weeks: [
           { id: "w1", text: "Week 1: Git lifecycle (init, commit, merge)" },
           { id: "w2", text: "Week 2: Branching strategies" },
@@ -111,7 +114,8 @@ const CURRICULUM = [
       },
       {
         id: "m4", title: "Month 4: Type-Safe Backend with Node.js",
-        course: "Learn TypeScript (Codecademy)", link: "https://www.codecademy.com/learn/learn-typescript",
+        description: "Architect type-safe asynchronous routing. You will build resilient Node.js middleware to manage and authenticate traffic between your frontend dashboard and your local AI model endpoints.",
+        course: "Learn TypeScript: Fundamentals", link: "https://www.codecademy.com/learn/learn-typescript-fundamentals",
         weeks: [
           { id: "w1", text: "Week 1: Asynchronous programming" },
           { id: "w2", text: "Week 2: Node.js File System (fs)" },
@@ -128,7 +132,8 @@ const CURRICULUM = [
     months: [
       {
         id: "m5", title: "Month 5: Linear Algebra & Matrix Calculus",
-        course: "MIT 18.06: Linear Algebra (Gilbert Strang)", link: "https://web.mit.edu/18.06/www/",
+        description: "Dive into the mathematical heart of AI. You will understand the vector spaces, massive matrix transformations, and eigenvalues that govern modern neural network weights and biases.",
+        course: "MIT 18.06: Linear Algebra", link: "https://ocw.mit.edu/courses/18-06-linear-algebra-spring-2010/",
         weeks: [
           { id: "w1", text: "Week 1: Vector spaces" },
           { id: "w2", text: "Week 2: Eigenvalues & Eigenvectors" },
@@ -140,7 +145,8 @@ const CURRICULUM = [
       },
       {
         id: "m6", title: "Month 6: Multivariable Calculus & Optimization",
-        course: "Calculus for Machine Learning (Cursa)", link: "https://cursa.app/en/free-course/calculus-for-machine-learning-efdi",
+        description: "Master the mechanics of machine learning. Learn to visualize partial derivatives and gradient descent to mathematically prove how models minimize loss and iteratively learn.",
+        course: "Multivariable Calculus (Khan Academy)", link: "https://www.khanacademy.org/math/multivariable-calculus",
         weeks: [
           { id: "w1", text: "Week 1: Gradients" },
           { id: "w2", text: "Week 2: Partial Derivatives" },
@@ -152,7 +158,8 @@ const CURRICULUM = [
       },
       {
         id: "m7", title: "Month 7: Probability & Uncertainty",
-        course: "Data Science: Probability (Harvard Online)", link: "https://pll.harvard.edu/course/data-science-probability",
+        description: "Quantify the unknown. Use Bayesian inference and entropy mathematics to measure model uncertainty, allowing you to mathematically score and prevent hallucination risks.",
+        course: "Data Science: Probability", link: "https://pll.harvard.edu/course/data-science-probability",
         weeks: [
           { id: "w1", text: "Week 1: Bayesian inference" },
           { id: "w2", text: "Week 2: Random variables" },
@@ -164,7 +171,8 @@ const CURRICULUM = [
       },
       {
         id: "m8", title: "Month 8: GitHub Mastery 2 - MLOps",
-        course: "GitHub Actions Certification Prep", link: "https://learn.microsoft.com/en-us/credentials/certifications/github-actions/",
+        description: "Automate your infrastructure. Design CI/CD pipelines and security scanning workflows to deploy, test, and validate model updates autonomously without human intervention.",
+        course: "Automate Workflows with GitHub Actions", link: "https://learn.microsoft.com/en-us/training/paths/automate-workflow-github-actions/",
         weeks: [
           { id: "w1", text: "Week 1: GitHub Actions" },
           { id: "w2", text: "Week 2: CI/CD pipelines" },
@@ -181,7 +189,8 @@ const CURRICULUM = [
     months: [
       {
         id: "m9", title: "Month 9: Python for AI Engineering",
-        course: "Machine Learning with Python (IBM)", link: "https://www.coursera.org/learn/machine-learning-with-python",
+        description: "Engineer production-ready data pipelines. Clean, aggregate, and structure raw local data into high-quality formats using advanced Pandas and Scikit-learn architectures.",
+        course: "Machine Learning with Python", link: "https://www.coursera.org/learn/machine-learning-with-python",
         weeks: [
           { id: "w1", text: "Week 1: NumPy" },
           { id: "w2", text: "Week 2: Pandas" },
@@ -193,7 +202,8 @@ const CURRICULUM = [
       },
       {
         id: "m10", title: "Month 10: PyTorch Mechanics",
-        course: "PyTorch for Deep Learning (DeepLearning.AI)", link: "https://www.deeplearning.ai/short-courses/pytorch-for-deep-learning/",
+        description: "Build neural architectures from scratch. Leverage PyTorch tensors and Autograd mechanisms to construct advanced vision models for local hardware security monitoring.",
+        course: "Deep Neural Networks with PyTorch", link: "https://www.coursera.org/learn/deep-neural-networks-with-pytorch",
         weeks: [
           { id: "w1", text: "Week 1: Tensors" },
           { id: "w2", text: "Week 2: Autograd" },
@@ -205,7 +215,8 @@ const CURRICULUM = [
       },
       {
         id: "m11", title: "Month 11: Transformer Architecture",
-        course: "Large Language Model Fundamentals (Cornell)", link: "https://ecornell.cornell.edu/certificates/technology/large-language-model-fundamentals/",
+        description: "Deconstruct the engine of modern AI. Plot and mathematically analyze the Query/Key/Value projections and Multi-Head Attention mechanisms inside open-weights models.",
+        course: "Generative AI with Large Language Models", link: "https://www.coursera.org/learn/generative-ai-with-llms",
         weeks: [
           { id: "w1", text: "Week 1: Multi-Head Attention" },
           { id: "w2", text: "Week 2: Positional Encoding" },
@@ -217,7 +228,8 @@ const CURRICULUM = [
       },
       {
         id: "m12", title: "Month 12: Pre-training & Ethics",
-        course: "CS50 AI (Harvard)", link: "https://pll.harvard.edu/course/cs50s-introduction-artificial-intelligence-python",
+        description: "Generate synthetic knowledge. Explore scaling laws and utilize local teacher models to curate and filter high-quality instruction datasets for your private factory.",
+        course: "CS50 AI (Harvard)", link: "https://cs50.harvard.edu/ai/",
         weeks: [
           { id: "w1", text: "Week 1: Data scaling laws" },
           { id: "w2", text: "Week 2: Distributed training (vLLM)" },
@@ -234,7 +246,8 @@ const CURRICULUM = [
     months: [
       {
         id: "m13", title: "Month 13: Parameter-Efficient Fine-Tuning",
-        course: "Fine-Tuning LLMs (DeepLearning.AI)", link: "https://www.deeplearning.ai/short-courses/finetuning-large-language-models/",
+        description: "Specialize your models efficiently. Master LoRA mathematics and adapter merging to inject highly specific domain knowledge into your base fleet without retraining.",
+        course: "Fine-Tuning Large Language Models", link: "https://huggingface.co/learn/nlp-course/chapter3/1",
         weeks: [
           { id: "w1", text: "Week 1: Low-rank matrices" },
           { id: "w2", text: "Week 2: NF4 quantization" },
@@ -246,7 +259,8 @@ const CURRICULUM = [
       },
       {
         id: "m14", title: "Month 14: Quantization Science",
-        course: "LLM Quantization Guide (Prem AI)", link: "https://blog.premai.io/llm-quantization-guide-gguf-vs-awq-vs-gptq-vs-bitsandbytes-compared-2026/",
+        description: "Maximize VRAM utilization. Compare GGUF and AWQ formats, and master weight compression science to run massive, highly-capable models on consumer-grade GPUs.",
+        course: "Optimum Quantization Guide", link: "https://huggingface.co/docs/optimum/concept_guides/quantization",
         weeks: [
           { id: "w1", text: "Week 1: Weight compression (16-bit to 4-bit)" },
           { id: "w2", text: "Week 2: PagedAttention" },
@@ -258,7 +272,8 @@ const CURRICULUM = [
       },
       {
         id: "m15", title: "Month 15: CUDA & Kernel-Level Integration",
-        course: "CUDA Programming Guide (NVIDIA)", link: "https://docs.nvidia.com/cuda/",
+        description: "Bypass high-level API overhead. Write custom C++ CUDA kernels to directly manipulate GPU streaming multiprocessors and vastly accelerate your attention calculations.",
+        course: "NVIDIA Deep Learning Institute: CUDA C/C++", link: "https://courses.nvidia.com/courses/course-v1:DLI+C-AC-01+V1/",
         weeks: [
           { id: "w1", text: "Week 1: GPU architecture" },
           { id: "w2", text: "Week 2: Memory layouts" },
@@ -270,7 +285,8 @@ const CURRICULUM = [
       },
       {
         id: "m16", title: "Month 16: GitHub Mastery 3",
-        course: "GitHub Foundations (GitHub)", link: "https://resources.github.com/learn/certifications/",
+        description: "Govern the factory. Implement enterprise-grade repository rulesets, SAML SSO, and strict data leakage prevention policies to ensure complete sovereign security.",
+        course: "GitHub Foundations", link: "https://learn.microsoft.com/en-us/credentials/certifications/github-foundations/",
         weeks: [
           { id: "w1", text: "Week 1: Enterprise Governance" },
           { id: "w2", text: "Week 2: SAML SSO" },
@@ -287,7 +303,8 @@ const CURRICULUM = [
     months: [
       {
         id: "m17", title: "Month 17: Retrieval-Augmented Generation",
-        course: "Retrieval Augmented Generation (DeepLearning.AI)", link: "https://www.deeplearning.ai/short-courses/retrieval-augmented-generation-for-production/",
+        description: "Give your AI accurate, private context. Deploy local vector databases, master semantic chunking algorithms, and build highly-cited knowledge retrieval pipelines.",
+        course: "Retrieval-Augmented Generation", link: "https://www.pinecone.io/learn/retrieval-augmented-generation/",
         weeks: [
           { id: "w1", text: "Week 1: Vector databases (ChromaDB, Pinecone)" },
           { id: "w2", text: "Week 2: Semantic chunking" },
@@ -299,7 +316,8 @@ const CURRICULUM = [
       },
       {
         id: "m18", title: "Month 18: Agentic Workflows",
-        course: "AI Agents Course (Hugging Face)", link: "https://huggingface.co/learn/agents-course/unit0/introduction",
+        description: "Orchestrate autonomous labor. Combine tool-use function calling and agentic frameworks to build swarms that can code, test, and execute complex workflows without supervision.",
+        course: "AI Agents Course", link: "https://huggingface.co/learn/agents-course/unit0/introduction",
         weeks: [
           { id: "w1", text: "Week 1: Function calling" },
           { id: "w2", text: "Week 2: Multi-agent orchestration" },
@@ -311,7 +329,8 @@ const CURRICULUM = [
       },
       {
         id: "m19", title: "Month 19: Long-Term Memory",
-        course: "Graph Databases Basics (Neo4j)", link: "https://graphacademy.neo4j.com/",
+        description: "Solve context window amnesia. Integrate graph databases to grant your agent swarms persistent memory and cross-session contextual awareness.",
+        course: "LLM Fundamentals with Neo4j", link: "https://graphacademy.neo4j.com/courses/llm-fundamentals/",
         weeks: [
           { id: "w1", text: "Week 1: Persistent memory (Mem0)" },
           { id: "w2", text: "Week 2: Graph databases (Neo4j)" },
@@ -323,7 +342,11 @@ const CURRICULUM = [
       },
       {
         id: "m20", title: "Month 20: Red Teaming & Safety",
-        course: "AI Red-Teaming and Security (Learn Prompting)", link: "https://learnprompting.org/courses/ai-security-masterclass",
+        description: "Fortify the perimeter. Perform rigorous red-teaming against prompt injections, jailbreaks, and adversarial attacks to secure your autonomous systems.",
+        options: [
+          { type: "Free", course: "OWASP Top 10 for LLMs", link: "https://genai.owasp.org/" },
+          { type: "Paid", course: "AI Security Masterclass", link: "https://learnprompting.org/courses/ai-security-masterclass" }
+        ],
         weeks: [
           { id: "w1", text: "Week 1: Prompt injection" },
           { id: "w2", text: "Week 2: Jailbreaking defense" },
@@ -340,7 +363,8 @@ const CURRICULUM = [
     months: [
       {
         id: "m21", title: "Month 21: Local Inference Engines",
-        course: "Ollama/Llama.cpp Docs", link: "https://ollama.com/",
+        description: "Serve the fleet. Standardize your unified API gateways to securely expose high-speed local inference to your broader private network.",
+        course: "Ollama Official Documentation", link: "https://github.com/ollama/ollama",
         weeks: [
           { id: "w1", text: "Week 1: Ollama Configuration" },
           { id: "w2", text: "Week 2: Llama.cpp compilation" },
@@ -352,7 +376,8 @@ const CURRICULUM = [
       },
       {
         id: "m22", title: "Month 22: Desktop Application Packaging",
-        course: "Tauri vs. Electron Benchmark (Dev.to)", link: "https://dev.to/manascodes13/a-new-way-to-create-desktop-applications-tauri-react-59bp",
+        description: "Package AI into native software. Bundle your local inference engines into sleek, cross-platform desktop applications using the Rust programming language and Tauri.",
+        course: "Tauri + React Setup", link: "https://tauri.app/v1/guides/getting-started/setup/react/",
         weeks: [
           { id: "w1", text: "Week 1: Bundling local AI" },
           { id: "w2", text: "Week 2: Cross-platform software (.dmg/.exe)" },
@@ -364,7 +389,8 @@ const CURRICULUM = [
       },
       {
         id: "m23", title: "Month 23: Scalable MLOps",
-        course: "MLOps: Machine Learning Operations (Duke/Coursera)", link: "https://www.coursera.org/learn/mlops-fundamentals",
+        description: "Ensure infinite scalability. Dockerize your models and orchestrate them with K3s Kubernetes to automatically spawn nodes based on inference request volume.",
+        course: "MLOps: Machine Learning Operations", link: "https://www.coursera.org/learn/mlops-fundamentals",
         weeks: [
           { id: "w1", text: "Week 1: Docker for AI" },
           { id: "w2", text: "Week 2: K3s Kubernetes" },
@@ -376,7 +402,8 @@ const CURRICULUM = [
       },
       {
         id: "m24", title: "Month 24: Final Portfolio & Capstone",
-        course: "Open Source Documentation", link: "https://opensource.guide/",
+        description: "Complete the Cyber Factory. Synthesize the 17-layer stack, benchmark your hardware gains, and document your comprehensive portfolio for the world.",
+        course: "Open Source Guide", link: "https://opensource.guide/",
         weeks: [
           { id: "w1", text: "Week 1: Finalize 'Cyber Factory' Repo" },
           { id: "w2", text: "Week 2: Document 60% hardware performance gain" },
@@ -393,7 +420,8 @@ const CURRICULUM = [
     months: [
       {
         id: "m25", title: "Month 25: Interview Blitz",
-        course: "Interview Preparation (Great Learning)", link: "https://www.mygreatlearning.com/academy/learn-for-free/courses/ai-interview-prep",
+        description: "Defend your architecture. Master the system design interview by eloquently defending your data sovereignty choices and custom hardware-level optimizations.",
+        course: "Career Guide and Interview Prep", link: "https://www.coursera.org/learn/career-guide-and-interview-prep-for-data-science-pc",
         weeks: [
           { id: "w1", text: "Week 1: System Design Interview" },
           { id: "w2", text: "Week 2: Architectural Defense Practice" },
@@ -405,7 +433,8 @@ const CURRICULUM = [
       },
       {
         id: "m26", title: "Month 26: Placement & Graduation",
-        course: "Career Portals", link: "#",
+        description: "Launch your career. Leverage your irrefutable technical moat to bypass automated screening and secure top decile placements in global innovation hubs.",
+        course: "Wellfound Job Portal", link: "https://wellfound.com/jobs",
         weeks: [
           { id: "w1", text: "Week 1: Apply to elite product firms" },
           { id: "w2", text: "Week 2: Bypass ATS using GitHub Portfolio" },
@@ -427,12 +456,27 @@ export default function App() {
   const [activeMonth, setActiveMonth] = useState(null);
   const [showReset, setShowReset] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  
+  // Profile Menu Toggle State
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const menuRef = useRef(null);
 
   // Theme Init
   useEffect(() => {
     if (darkMode) document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
   }, [darkMode]);
+
+  // Handle clicking outside the profile menu
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowProfileMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [menuRef]);
 
   // Auth Listener
   useEffect(() => {
@@ -469,6 +513,7 @@ export default function App() {
   const handleLogout = async () => {
     try {
       await signOut(auth);
+      setShowProfileMenu(false);
     } catch (error) {
       console.error("Logout failed:", error);
     }
@@ -511,7 +556,6 @@ export default function App() {
   if (!user) {
     return (
       <div className={`min-h-screen flex flex-col transition-colors duration-300 font-sans ${darkMode ? 'bg-slate-950 text-slate-200' : 'bg-slate-50 text-slate-800'}`}>
-         {/* Minimal Nav for Theme Toggle */}
          <nav className="p-6 flex justify-end">
            <div className={`flex rounded-lg p-1 ${darkMode ? 'bg-slate-900' : 'bg-slate-200'}`}>
               <button onClick={() => setDarkMode(false)} className={`p-2 rounded-md transition-all ${!darkMode ? 'bg-white shadow-sm text-amber-500' : 'text-slate-500'}`}><Sun size={18} /></button>
@@ -566,17 +610,57 @@ export default function App() {
               <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Program Completion</span>
               <span className="text-lg font-mono font-bold text-teal-500 leading-none">{stats.percent}%</span>
             </div>
-            <div className={`flex rounded-lg p-1 ${darkMode ? 'bg-slate-900' : 'bg-slate-100'}`}>
+            
+            <div className={`flex rounded-lg p-1 hidden sm:flex ${darkMode ? 'bg-slate-900' : 'bg-slate-100'}`}>
               <button onClick={() => setDarkMode(false)} className={`p-2 rounded-md transition-all ${!darkMode ? 'bg-white shadow-sm text-amber-500' : 'text-slate-500'}`}><Sun size={18} /></button>
               <button onClick={() => setDarkMode(true)} className={`p-2 rounded-md transition-all ${darkMode ? 'bg-slate-800 shadow-sm text-indigo-400' : 'text-slate-500'}`}><Moon size={18} /></button>
             </div>
             
-            <div className="flex items-center gap-2">
-               <button onClick={() => setShowReset(true)} className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all hidden sm:block" title="Reset Progress"><RotateCcw size={20} /></button>
-               <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors text-sm font-bold">
-                 <LogOut size={16} /> <span className="hidden sm:inline">Logout</span>
+            <button onClick={() => setShowReset(true)} className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all hidden sm:block" title="Reset Progress"><RotateCcw size={20} /></button>
+
+            {/* --- GOOGLE PROFILE & LOGOUT DROPDOWN --- */}
+            <div className="relative" ref={menuRef}>
+               <button
+                 onClick={() => setShowProfileMenu(!showProfileMenu)}
+                 className={`flex items-center gap-2 px-2 py-1.5 sm:px-3 sm:py-2 rounded-full transition-colors border ${darkMode ? 'bg-slate-900 hover:bg-slate-800 border-slate-700' : 'bg-white hover:bg-slate-100 border-slate-300'}`}
+               >
+                 {user.photoURL ? (
+                   <img src={user.photoURL} alt="Profile" className="w-6 h-6 sm:w-7 sm:h-7 rounded-full object-cover" />
+                 ) : (
+                   <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-teal-600 flex items-center justify-center text-white text-xs font-bold">
+                     {user.displayName ? user.displayName[0].toUpperCase() : 'U'}
+                   </div>
+                 )}
+                 <span className="text-sm font-bold hidden sm:block max-w-[120px] truncate">{user.displayName || 'User'}</span>
+                 <ChevronDown size={14} className="opacity-60 hidden sm:block"/>
                </button>
+
+               {showProfileMenu && (
+                 <div className={`absolute right-0 mt-3 w-56 border rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+                   <div className={`px-4 py-4 border-b ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+                     <p className="text-sm font-bold truncate">{user.displayName || 'Architect'}</p>
+                     <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                   </div>
+                   
+                   {/* Mobile only controls inside dropdown */}
+                   <div className={`sm:hidden px-4 py-3 border-b flex justify-between items-center ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+                      <span className="text-xs font-bold uppercase tracking-widest text-slate-500">Theme</span>
+                      <div className={`flex rounded-lg p-1 ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
+                        <button onClick={() => setDarkMode(false)} className={`p-1.5 rounded-md ${!darkMode ? 'bg-white shadow-sm text-amber-500' : 'text-slate-500'}`}><Sun size={14} /></button>
+                        <button onClick={() => setDarkMode(true)} className={`p-1.5 rounded-md ${darkMode ? 'bg-slate-900 shadow-sm text-indigo-400' : 'text-slate-500'}`}><Moon size={14} /></button>
+                      </div>
+                   </div>
+                   
+                   <button
+                     onClick={handleLogout}
+                     className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-red-500/10 transition-colors font-bold text-left"
+                   >
+                     <LogOut size={18} /> Sign Out
+                   </button>
+                 </div>
+               )}
             </div>
+
           </div>
         </div>
       </nav>
@@ -742,14 +826,35 @@ export default function App() {
                               {isMonthOpen && (
                                 <div className={`p-6 border-t ${darkMode ? 'border-slate-800 bg-slate-900/50' : 'border-slate-200 bg-white'}`}>
                                   
-                                  <div className={`mb-8 p-5 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-4 ${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                                    <div>
-                                      <p className="text-[10px] font-bold uppercase tracking-widest text-teal-600 dark:text-teal-400 mb-1">Primary Study Material & Certification</p>
-                                      <p className="font-bold">{month.course}</p>
-                                    </div>
-                                    <a href={month.link} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-teal-500/20 whitespace-nowrap">
-                                      <GraduationCap size={18} /> Apply / Read
-                                    </a>
+                                  {/* Description Addition */}
+                                  <p className={`text-sm mb-6 leading-relaxed p-4 rounded-xl border ${darkMode ? 'bg-slate-950/50 border-slate-800/50 text-slate-400' : 'bg-white/50 border-slate-100 text-slate-600'}`}>
+                                    {month.description}
+                                  </p>
+
+                                  <div className="mb-8 space-y-3">
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-teal-600 dark:text-teal-400 px-1">Primary Study Material & Certification</p>
+
+                                    {/* Handle Free/Paid Split if options array exists (Month 20 logic) */}
+                                    {month.options ? (
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                         {month.options.map((opt, i) => (
+                                           <a key={i} href={opt.link} target="_blank" rel="noreferrer" className={`p-4 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors group ${darkMode ? 'bg-slate-900 border-slate-700 hover:border-teal-500' : 'bg-slate-50 border-slate-200 hover:border-teal-500'}`}>
+                                              <div>
+                                                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full mb-2 inline-block ${opt.type === 'Free' ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/20 text-amber-600 dark:text-amber-400'}`}>{opt.type} Route</span>
+                                                <p className="font-bold text-sm group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">{opt.course}</p>
+                                              </div>
+                                              <span className="inline-flex items-center gap-1 text-teal-600 dark:text-teal-400 font-bold text-xs whitespace-nowrap"><ExternalLink size={14}/> Access</span>
+                                           </a>
+                                         ))}
+                                      </div>
+                                    ) : (
+                                      <div className={`p-5 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-4 ${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                                        <p className="font-bold">{month.course}</p>
+                                        <a href={month.link} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-teal-500/20 whitespace-nowrap">
+                                          <GraduationCap size={18} /> Apply / Read
+                                        </a>
+                                      </div>
+                                    )}
                                   </div>
 
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
