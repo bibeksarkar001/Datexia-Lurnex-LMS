@@ -8,16 +8,8 @@ import {
 } from 'lucide-react';
 
 // --- FIREBASE CONFIGURATION ---
-// IMPORTANT: Replace this entire object with your actual keys from Firebase Console
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
-};
-
+// Carefully replace the "YOUR_..." text below with your actual keys.
+// Do not delete the quotation marks or the commas!
 const firebaseConfig = {
     apiKey: "AIzaSyDmK7CpdmsKCSj0-JEQXeNR78sy1SEMNAg",
     authDomain: "datexia-lurnex-lms.firebaseapp.com",
@@ -26,7 +18,13 @@ const firebaseConfig = {
     messagingSenderId: "642100250858",
     appId: "1:642100250858:web:4a39556431eb572b8baf93",
     measurementId: "G-K5TWLN8RF9"
+};
 
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+const db = getFirestore(app);
+const collectionId = 'datexia-lms';
 
 // --- COURSE DATA ---
 const JOBS = [
@@ -477,6 +475,7 @@ export default function App() {
   };
 
   const toggleProgress = async (key) => {
+    if (!user) return;
     const newState = { ...progress, [key]: !progress[key] };
     const docRef = doc(db, collectionId, user.uid);
     await setDoc(docRef, { state: newState }, { merge: true });
