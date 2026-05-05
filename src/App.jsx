@@ -10,6 +10,15 @@ import {
 // --- FIREBASE CONFIGURATION ---
 // IMPORTANT: Replace this entire object with your actual keys from Firebase Console
 const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_STORAGE_BUCKET",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+const firebaseConfig = {
     apiKey: "AIzaSyDmK7CpdmsKCSj0-JEQXeNR78sy1SEMNAg",
     authDomain: "datexia-lurnex-lms.firebaseapp.com",
     projectId: "datexia-lurnex-lms",
@@ -17,13 +26,7 @@ const firebaseConfig = {
     messagingSenderId: "642100250858",
     appId: "1:642100250858:web:4a39556431eb572b8baf93",
     measurementId: "G-K5TWLN8RF9"
-};
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const provider = new GoogleAuthProvider();
-const db = getFirestore(app);
-const collectionId = 'datexia-lms';
 
 // --- COURSE DATA ---
 const JOBS = [
@@ -526,7 +529,7 @@ export default function App() {
               <h2 className="text-sm font-bold text-teal-600 dark:text-teal-400 uppercase tracking-widest mb-6">Sovereign AI Architect Program</h2>
               
               <p className={`text-sm md:text-base leading-relaxed mb-10 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                Welcome to your personal learning portal and Progress tracker. This platform is designed to guide you through a 26-month journey to master local AI infrastructure, track your weekly progressions, and build an elite technical moat. 
+                Welcome to your personal learning portal and habit tracker. This platform is designed to guide you through a 26-month journey to master local AI infrastructure, track your weekly progressions, and build an elite technical moat. 
                 <br/><br/>
                 Please sign in to access the curriculum, save your progress securely to the cloud, and begin your transformation.
               </p>
@@ -715,9 +718,9 @@ export default function App() {
                           
                           let mTotal = month.weeks.length + month.projects.length + 1;
                           let mDone = 0;
-                          month.weeks.forEach(w => progress[`${m.id}_${w.id}`] && mDone++);
-                          month.projects.forEach((_, i) => progress[`${m.id}_p${i}`] && mDone++);
-                          if (progress[`${m.id}_iq`]) mDone++;
+                          month.weeks.forEach(w => progress[`${month.id}_${w.id}`] && mDone++);
+                          month.projects.forEach((_, i) => progress[`${month.id}_p${i}`] && mDone++);
+                          if (progress[`${month.id}_iq`]) mDone++;
                           const isMonthComplete = mTotal === mDone && mTotal > 0;
 
                           return (
