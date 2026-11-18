@@ -2,7 +2,57 @@
 @tailwind components;
 @tailwind utilities;
 
-.custom-scrollbar::-webkit-scrollbar { width: 6px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-.dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; }
+@layer base {
+  html { scroll-behavior: smooth; }
+  body { @apply bg-slate-50 text-slate-800 antialiased dark:bg-slate-950 dark:text-slate-200; }
+}
+
+@layer components {
+  .card { @apply rounded-2xl border border-slate-200 bg-white transition duration-200 dark:border-slate-800 dark:bg-slate-900/70; }
+  .card-lift { @apply hover:-translate-y-0.5 hover:border-teal-500/60 hover:shadow-lg hover:shadow-teal-500/5; }
+  .ring-focus { @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50 dark:focus-visible:ring-offset-slate-950; }
+  .eyebrow { @apply text-[10px] font-bold uppercase tracking-widest opacity-60; }
+}
+
+/* --- Hero aurora + gradient heading --- */
+.aurora { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.aurora i {
+  position: absolute; width: 36rem; height: 36rem; border-radius: 9999px; filter: blur(90px); opacity: .28;
+  animation: aurora-drift 18s ease-in-out infinite alternate;
+}
+.aurora i:nth-child(1) { background: #14b8a6; top: -14rem; left: -8rem; }
+.aurora i:nth-child(2) { background: #6366f1; top: -10rem; right: -10rem; animation-delay: -6s; }
+.aurora i:nth-child(3) { background: #f59e0b; bottom: -20rem; left: 35%; opacity: .14; animation-delay: -12s; }
+.text-gradient {
+  background: linear-gradient(90deg, #0d9488, #6366f1, #d97706, #0d9488); background-size: 250% auto;
+  -webkit-background-clip: text; background-clip: text; color: transparent; animation: gradient-shift 10s linear infinite;
+}
+.dark .text-gradient { background-image: linear-gradient(90deg, #2dd4bf, #818cf8, #fbbf24, #2dd4bf); }
+
+@keyframes aurora-drift { from { transform: translate3d(0,0,0) scale(1); } to { transform: translate3d(6rem,3rem,0) scale(1.15); } }
+@keyframes gradient-shift { to { background-position: 250% center; } }
+@keyframes tick-pop { 0% { transform: scale(.3); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
+@keyframes toast-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes menu-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+.tick-pop { animation: tick-pop .3s ease-out; }
+.toast-in { animation: toast-in .25s ease-out; }
+.menu-in { animation: menu-in .15s ease-out; }
+
+/* --- Scroll reveal (class added by IntersectionObserver in App) --- */
+.reveal { opacity: 0; transform: translateY(14px); transition: opacity .5s ease, transform .5s ease; }
+.reveal.is-visible { opacity: 1; transform: none; }
+
+/* --- Smooth expand/collapse: grid-rows 0fr -> 1fr --- */
+.collapse-grid { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .3s ease; }
+.collapse-grid.is-open { grid-template-rows: 1fr; }
+.collapse-grid > .collapse-inner { position: relative; overflow: hidden; min-height: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .aurora i, .text-gradient, .tick-pop, .toast-in, .menu-in { animation: none !important; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .collapse-grid { transition: none; }
+  .card, .card-lift { transition: none; }
+  .card-lift:hover { transform: none; }
+}

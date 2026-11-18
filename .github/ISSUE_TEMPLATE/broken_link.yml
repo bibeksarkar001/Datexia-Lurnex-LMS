@@ -1,0 +1,62 @@
+name: Broken link
+description: Report a course, project, or resource link that no longer works
+title: "[Broken link] Month "
+labels: ["broken-link", "good first issue"]
+body:
+  - type: dropdown
+    id: month
+    attributes:
+      label: Month
+      description: Which curriculum month contains the broken link?
+      options:
+        - "1"
+        - "2"
+        - "3"
+        - "4"
+        - "5"
+        - "6"
+        - "7"
+        - "8"
+        - "9"
+        - "10"
+        - "11"
+        - "12"
+        - "13"
+        - "14"
+        - "15"
+        - "16"
+        - "17"
+        - "18"
+        - "19"
+        - "20"
+        - "21"
+        - "22"
+        - "23"
+        - "24"
+        - "25"
+        - "26"
+    validations:
+      required: true
+  - type: input
+    id: broken_url
+    attributes:
+      label: Broken URL
+      description: The link that fails or no longer leads to the course.
+      placeholder: https://example.com/course
+    validations:
+      required: true
+  - type: input
+    id: replacement_url
+    attributes:
+      label: Suggested replacement URL (optional)
+      description: A working free alternative, if you have one.
+      placeholder: https://example.com/new-course
+    validations:
+      required: false
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes (optional)
+      description: Anything else that helps, such as the error you saw or the date you checked.
+    validations:
+      required: false

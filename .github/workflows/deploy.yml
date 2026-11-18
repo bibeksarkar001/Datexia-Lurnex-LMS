@@ -21,27 +21,40 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout (v2, this branch)
         uses: actions/checkout@v4
-      
+
+      - name: Checkout classic v1 (frozen tag, served at the site root)
+        uses: actions/checkout@v4
+        with:
+          ref: v1.0.0
+          path: _classic
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          
-      - name: Install dependencies
-        run: npm install
-        
-      - name: Build
-        run: npm run build
-        
+
+      - name: Build v2 (served at /v2/)
+        run: npm ci && npm test && npm run build
+
+      - name: Build classic v1
+        working-directory: _classic
+        run: npm install --no-audit --no-fund && npm run build
+
+      - name: Combine both builds
+        run: |
+          mkdir -p _site
+          cp -R _classic/dist/. _site/
+          cp -R dist _site/v2
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
         
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './dist'
+          path: './_site'
           
       - name: Deploy to GitHub Pages
         id: deployment

@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-labelledby="t d">
+  <title id="t">Datexia Lurnex LMS</title>
+  <desc id="d">Animated banner: a floating 3D chip orbited by rings over a moving perspective grid, with the project title.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#020617"/>
+      <stop offset="1" stop-color="#0b1222"/>
+    </linearGradient>
+    <radialGradient id="glowA" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#14b8a6" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#14b8a6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#6366f1" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#6366f1" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="title" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5eead4"/>
+      <stop offset="0.5" stop-color="#e2e8f0"/>
+      <stop offset="1" stop-color="#a5b4fc"/>
+    </linearGradient>
+    <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="1"/>
+    </linearGradient>
+    <mask id="floorMask"><rect x="0" y="250" width="1280" height="170" fill="url(#fade)"/></mask>
+    <clipPath id="floorClip"><rect x="0" y="250" width="1280" height="170"/></clipPath>
+    <path id="orbit1" d="M 140 210 a 120 42 0 1 0 240 0 a 120 42 0 1 0 -240 0"/>
+    <path id="orbit2" d="M 165 210 a 95 95 0 1 0 190 0 a 95 95 0 1 0 -190 0"/>
+  </defs>
+
+  <style>
+    .glow  { animation: breathe 6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .glow2 { animation-delay: -3s; }
+    .grid  { animation: scroll 2.4s linear infinite; }
+    .chip  { animation: float 5s ease-in-out infinite; }
+    .ring1 { animation: spin 14s linear infinite; transform-box: fill-box; transform-origin: center; }
+    .ring2 { animation: spin 22s linear infinite reverse; transform-box: fill-box; transform-origin: center; }
+    .tw    { animation: twinkle 3s ease-in-out infinite; }
+    .t2 { animation-delay: -0.8s } .t3 { animation-delay: -1.6s } .t4 { animation-delay: -2.2s }
+    .rise  { animation: rise 1s ease-out both; }
+    .r2 { animation-delay: .15s } .r3 { animation-delay: .3s } .r4 { animation-delay: .45s }
+    .scan  { animation: scan 4s ease-in-out infinite; }
+    @keyframes breathe { 0%,100% { opacity: .55; transform: scale(1) } 50% { opacity: 1; transform: scale(1.12) } }
+    @keyframes scroll  { from { transform: translateY(0) } to { transform: translateY(28px) } }
+    @keyframes float   { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-12px) } }
+    @keyframes spin    { to { transform: rotate(360deg) } }
+    @keyframes twinkle { 0%,100% { opacity: .15 } 50% { opacity: 1 } }
+    @keyframes rise    { from { opacity: 0; transform: translateY(14px) } to { opacity: 1; transform: none } }
+    @keyframes scan    { 0%,100% { transform: translateX(0); opacity: 0 } 10%,90% { opacity: .9 } 50% { transform: translateX(560px) } }
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important } }
+  </style>
+
+  <rect width="1280" height="420" fill="url(#bg)"/>
+  <ellipse class="glow" cx="260" cy="200" rx="300" ry="220" fill="url(#glowA)"/>
+  <ellipse class="glow glow2" cx="1050" cy="140" rx="340" ry="220" fill="url(#glowB)"/>
+
+  <!-- perspective floor -->
+  <g mask="url(#floorMask)" stroke="#2dd4bf" stroke-opacity=".35" stroke-width="1">
+    <g>
+      <line x1="640" y1="250" x2="-560" y2="420"/><line x1="640" y1="250" x2="-260" y2="420"/>
+      <line x1="640" y1="250" x2="40" y2="420"/><line x1="640" y1="250" x2="340" y2="420"/>
+      <line x1="640" y1="250" x2="640" y2="420"/><line x1="640" y1="250" x2="940" y2="420"/>
+      <line x1="640" y1="250" x2="1240" y2="420"/><line x1="640" y1="250" x2="1540" y2="420"/>
+      <line x1="640" y1="250" x2="1840" y2="420"/>
+    </g>
+    <g clip-path="url(#floorClip)">
+      <g class="grid">
+        <line x1="0" y1="226" x2="1280" y2="226"/><line x1="0" y1="254" x2="1280" y2="254"/>
+        <line x1="0" y1="282" x2="1280" y2="282"/><line x1="0" y1="310" x2="1280" y2="310"/>
+        <line x1="0" y1="338" x2="1280" y2="338"/><line x1="0" y1="366" x2="1280" y2="366"/>
+        <line x1="0" y1="394" x2="1280" y2="394"/><line x1="0" y1="422" x2="1280" y2="422"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- stars -->
+  <g fill="#e2e8f0">
+    <circle class="tw" cx="80" cy="60" r="1.6"/><circle class="tw t2" cx="470" cy="40" r="1.2"/>
+    <circle class="tw t3" cx="610" cy="120" r="1.4"/><circle class="tw t4" cx="1200" cy="60" r="1.6"/>
+    <circle class="tw t2" cx="1130" cy="230" r="1.2"/><circle class="tw" cx="420" cy="230" r="1"/>
+    <circle class="tw t3" cx="900" cy="34" r="1.2"/><circle class="tw t4" cx="40" cy="250" r="1.2"/>
+  </g>
+
+  <!-- orbits -->
+  <g fill="none">
+    <g class="ring1"><use href="#orbit1" stroke="#2dd4bf" stroke-opacity=".55" stroke-width="1.5" stroke-dasharray="6 8"/></g>
+    <g class="ring2"><use href="#orbit2" stroke="#818cf8" stroke-opacity=".4" stroke-width="1" stroke-dasharray="2 6"/></g>
+  </g>
+  <circle r="5" fill="#5eead4"><animateMotion dur="7s" repeatCount="indefinite"><mpath href="#orbit1"/></animateMotion></circle>
+  <circle r="3.5" fill="#a5b4fc"><animateMotion dur="11s" repeatCount="indefinite" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#orbit2"/></animateMotion></circle>
+
+  <!-- isometric 3D chip -->
+  <g class="chip">
+    <g transform="translate(260 210)">
+      <ellipse cx="0" cy="78" rx="70" ry="14" fill="#000" opacity=".45"/>
+      <polygon points="0,-62 66,-26 0,10 -66,-26" fill="#2dd4bf"/>
+      <polygon points="-66,-26 0,10 0,52 -66,16" fill="#0f766e"/>
+      <polygon points="66,-26 0,10 0,52 66,16" fill="#115e59"/>
+      <polygon points="0,-44 34,-26 0,-8 -34,-26" fill="#042f2e" opacity=".85"/>
+      <polygon points="0,-36 19,-26 0,-16 -19,-26" fill="#5eead4"/>
+      <g stroke="#99f6e4" stroke-width="2" stroke-linecap="round">
+        <line x1="-52" y1="-4" x2="-52" y2="12"/><line x1="-38" y1="3" x2="-38" y2="19"/><line x1="-24" y1="10" x2="-24" y2="26"/><line x1="-10" y1="17" x2="-10" y2="33"/>
+        <line x1="52" y1="-4" x2="52" y2="12"/><line x1="38" y1="3" x2="38" y2="19"/><line x1="24" y1="10" x2="24" y2="26"/><line x1="10" y1="17" x2="10" y2="33"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- text -->
+  <g font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif">
+    <text class="rise" x="520" y="118" fill="#5eead4" font-size="15" font-weight="700" letter-spacing="5">SOVEREIGN AI ARCHITECT PROGRAM</text>
+    <text class="rise r2" x="516" y="186" fill="url(#title)" font-size="66" font-weight="900" letter-spacing="-1.5">Datexia Lurnex LMS</text>
+    <rect class="scan" x="520" y="196" width="60" height="2" rx="1" fill="#5eead4"/>
+    <text class="rise r3" x="520" y="232" fill="#94a3b8" font-size="20" font-weight="500">From API consumer to the engineer who owns the AI stack.</text>
+    <g class="rise r4" font-size="14" font-weight="700" letter-spacing="1.5">
+      <rect x="520" y="258" width="132" height="34" rx="17" fill="#14b8a6" fill-opacity=".14" stroke="#2dd4bf" stroke-opacity=".5"/>
+      <text x="586" y="280" fill="#5eead4" text-anchor="middle">26 MONTHS</text>
+      <rect x="664" y="258" width="132" height="34" rx="17" fill="#6366f1" fill-opacity=".14" stroke="#818cf8" stroke-opacity=".5"/>
+      <text x="730" y="280" fill="#a5b4fc" text-anchor="middle">7 PHASES</text>
+      <rect x="808" y="258" width="150" height="34" rx="17" fill="#f59e0b" fill-opacity=".12" stroke="#fbbf24" stroke-opacity=".5"/>
+      <text x="883" y="280" fill="#fcd34d" text-anchor="middle">26 PROJECTS</text>
+      <rect x="970" y="258" width="132" height="34" rx="17" fill="#e2e8f0" fill-opacity=".06" stroke="#e2e8f0" stroke-opacity=".3"/>
+      <text x="1036" y="280" fill="#e2e8f0" text-anchor="middle">100% FREE</text>
+    </g>
+  </g>
+</svg>

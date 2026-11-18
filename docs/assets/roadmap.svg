@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="230" viewBox="0 0 1280 230" role="img" aria-labelledby="t">
+  <title id="t">The 7 phases of the 26-month roadmap, lighting up in sequence</title>
+  <style>
+    text { font-family: Inter, 'Segoe UI', Helvetica, Arial, sans-serif }
+    .track { stroke-dasharray: 1080; stroke-dashoffset: 1080; animation: draw 7s ease-in-out infinite }
+    .node  { animation: lit 7s ease-in-out infinite; transform-box: fill-box; transform-origin: center }
+    .n2 { animation-delay: .8s } .n3 { animation-delay: 1.6s } .n4 { animation-delay: 2.4s }
+    .n5 { animation-delay: 3.2s } .n6 { animation-delay: 4s }  .n7 { animation-delay: 4.8s }
+    @keyframes draw { 0% { stroke-dashoffset: 1080 } 70%,100% { stroke-dashoffset: 0 } }
+    @keyframes lit  { 0%,100% { opacity: .35; transform: scale(.92) } 12%,60% { opacity: 1; transform: scale(1) } }
+    @media (prefers-reduced-motion: reduce) { .track, .node { animation: none; stroke-dashoffset: 0; opacity: 1 } }
+  </style>
+  <rect width="1280" height="230" rx="18" fill="#0b1222"/>
+  <line x1="100" y1="92" x2="1180" y2="92" stroke="#1e293b" stroke-width="4" stroke-linecap="round"/>
+  <line class="track" x1="100" y1="92" x2="1180" y2="92" stroke="#2dd4bf" stroke-width="4" stroke-linecap="round"/>
+  <g text-anchor="middle">
+    <g class="node"><circle cx="100" cy="92" r="26" fill="#0f172a" stroke="#2dd4bf" stroke-width="3"/><text x="100" y="99" fill="#5eead4" font-size="18" font-weight="900">I</text>
+      <text x="100" y="148" fill="#e2e8f0" font-size="15" font-weight="800">Foundations</text><text x="100" y="170" fill="#64748b" font-size="13">Months 1–4</text></g>
+    <g class="node n2"><circle cx="280" cy="92" r="26" fill="#0f172a" stroke="#2dd4bf" stroke-width="3"/><text x="280" y="99" fill="#5eead4" font-size="18" font-weight="900">II</text>
+      <text x="280" y="148" fill="#e2e8f0" font-size="15" font-weight="800">Math Engines</text><text x="280" y="170" fill="#64748b" font-size="13">Months 5–8</text></g>
+    <g class="node n3"><circle cx="460" cy="92" r="26" fill="#0f172a" stroke="#818cf8" stroke-width="3"/><text x="460" y="99" fill="#a5b4fc" font-size="18" font-weight="900">III</text>
+      <text x="460" y="148" fill="#e2e8f0" font-size="15" font-weight="800">Deep Learning</text><text x="460" y="170" fill="#64748b" font-size="13">Months 9–12</text></g>
+    <g class="node n4"><circle cx="640" cy="92" r="26" fill="#0f172a" stroke="#818cf8" stroke-width="3"/><text x="640" y="99" fill="#a5b4fc" font-size="18" font-weight="900">IV</text>
+      <text x="640" y="148" fill="#e2e8f0" font-size="15" font-weight="800">Model Engineering</text><text x="640" y="170" fill="#64748b" font-size="13">Months 13–16</text></g>
+    <g class="node n5"><circle cx="820" cy="92" r="26" fill="#0f172a" stroke="#818cf8" stroke-width="3"/><text x="820" y="99" fill="#a5b4fc" font-size="18" font-weight="900">V</text>
+      <text x="820" y="148" fill="#e2e8f0" font-size="15" font-weight="800">Agents &amp; RAG</text><text x="820" y="170" fill="#64748b" font-size="13">Months 17–20</text></g>
+    <g class="node n6"><circle cx="1000" cy="92" r="26" fill="#0f172a" stroke="#fbbf24" stroke-width="3"/><text x="1000" y="99" fill="#fcd34d" font-size="18" font-weight="900">VI</text>
+      <text x="1000" y="148" fill="#e2e8f0" font-size="15" font-weight="800">Production</text><text x="1000" y="170" fill="#64748b" font-size="13">Months 21–24</text></g>
+    <g class="node n7"><circle cx="1180" cy="92" r="26" fill="#0f172a" stroke="#fbbf24" stroke-width="3"/><text x="1180" y="99" fill="#fcd34d" font-size="18" font-weight="900">VII</text>
+      <text x="1180" y="148" fill="#e2e8f0" font-size="15" font-weight="800">Career Launch</text><text x="1180" y="170" fill="#64748b" font-size="13">Months 25–26</text></g>
+  </g>
+  <text x="640" y="40" text-anchor="middle" fill="#94a3b8" font-size="13" font-weight="700" letter-spacing="4">THE 26-MONTH ROADMAP</text>
+</svg>

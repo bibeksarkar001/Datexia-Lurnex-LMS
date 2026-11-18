@@ -1,937 +1,199 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
-import { 
-  Sun, Moon, RotateCcw, ChevronDown, ChevronRight, CheckSquare, Square,
-  ExternalLink, Award, Briefcase, Code, Terminal, Brain, GraduationCap, Zap, BookOpen, ShieldCheck, Cpu, LogIn, LogOut
-} from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { onAuthStateChanged, signInWithPopup, signInWithRedirect, getRedirectResult, signOut } from 'firebase/auth';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { Briefcase, Code, Cloud, X, Zap } from 'lucide-react';
+import { auth, provider, db } from './firebase.js';
+import { JOBS, PROJECTS, CURRICULUM } from './data/curriculum.js';
+import { computeStats, findNextTask, mergeProgress, sameProgress, validateImport } from './lib/progress.js';
+import Nav from './components/Nav.jsx';
+import Curriculum from './components/Curriculum.jsx';
+import { ContinueCard, ProgressStrip } from './components/Dashboard.jsx';
+import { Jobs, Roadmap, ResetModal, Toast, Footer } from './components/Sections.jsx';
 
-// --- FIREBASE CONFIGURATION ---
-// IMPORTANT: Replace this entire object with your actual keys from Firebase Console
- const firebaseConfig = {
-    apiKey: "AIzaSyDmK7CpdmsKCSj0-JEQXeNR78sy1SEMNAg",
-    authDomain: "datexia-lurnex-lms.firebaseapp.com",
-    projectId: "datexia-lurnex-lms",
-    storageBucket: "datexia-lurnex-lms.firebasestorage.app",
-    messagingSenderId: "642100250858",
-    appId: "1:642100250858:web:4a39556431eb572b8baf93",
-    measurementId: "G-K5TWLN8RF9"
-};
+const COLLECTION = 'datexia-lms';
+const LS_PROGRESS = 'lurnex-progress';
+const LS_THEME = 'lurnex-theme';
+const LS_BANNER = 'lurnex-banner-dismissed';
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const provider = new GoogleAuthProvider();
-const db = getFirestore(app);
-const collectionId = 'datexia-lms';
-const previewAppId = typeof __app_id !== 'undefined' ? __app_id : 'datexia-lurnex-lms';
-
-// --- COURSE DATA ---
-const JOBS = [
-  { role: "Sovereign AI Architect", pay: "INR 35 – 65+ LPA", desc: "Designs private, 17-layer 'Cyber Factories' for enterprises." },
-  { role: "CUDA Kernel Engineer", pay: "INR 40 – 60 LPA", desc: "Optimizes hardware-level model performance (60%+ gains)." },
-  { role: "Product-Minded AI Lead", pay: "INR 45 – 80+ LPA", desc: "Bridges the gap between research prototypes and software." },
-  { role: "AI Safety & Alignment Engineer", pay: "INR 25 – 65 LPA", desc: "Performs Red-Teaming and preference alignment (DPO)." },
-  { role: "MLOps/LLMOps Lead", pay: "INR 20 – 55 LPA", desc: "Automates CI/CD for local model retraining and deployment." },
-  { role: "AI Infrastructure Engineer", pay: "INR 25 – 55 LPA", desc: "Manages local GPU clusters, vLLM, and K3s orchestration." },
-  { role: "RAG Architect", pay: "INR 18 – 50 LPA", desc: "Designs advanced retrieval-augmented generation pipelines." },
-  { role: "LLM Engineer", pay: "INR 20 – 50 LPA", desc: "Specialist in LoRA fine-tuning and 4-bit quantization science." },
-  { role: "Agentic Systems Developer", pay: "INR 22 – 45 LPA", desc: "Builds multi-agent swarms and autonomous workflows." },
-  { role: "Computer Vision Engineer", pay: "INR 15 – 35 LPA", desc: "Builds local visual-reasoning and security monitoring systems." }
-];
-
-const PROJECTS = [
-  { phase: "I", m: 1, name: "L1 Foundation Script", diff: "Beginner", focus: "Shell & Hardware Setup" },
-  { phase: "I", m: 1, name: "Sovereign Portfolio Hub", diff: "Beginner", focus: "GitHub Mastery & Pages" },
-  { phase: "I", m: 2, name: "Cyber Factory UI", diff: "Beginner", focus: "Full-Stack Dashboard" },
-  { phase: "I", m: 3, name: "The Statistics Profiler", diff: "Beginner", focus: "Data Analytics & Python" },
-  { phase: "I", m: 4, name: "L5 AI Router Proxy", diff: "Foundational", focus: "Backend Logic & TS" },
-  { phase: "II", m: 5, name: "Matrix Engine", diff: "Foundational", focus: "Linear Algebra for AI" },
-  { phase: "II", m: 6, name: "Loss Optimizer", diff: "Foundational", focus: "Calculus & Optimization" },
-  { phase: "II", m: 7, name: "Hallucination Scorer", diff: "Intermediate", focus: "Probability & Uncertainty" },
-  { phase: "II", m: 8, name: "Autonomous Deployer", diff: "Intermediate", focus: "MLOps & GitHub Actions" },
-  { phase: "III", m: 9, name: "Sovereign Data Preprocessor", diff: "Intermediate", focus: "Production-Grade Python" },
-  { phase: "III", m: 10, name: "Visual Security Monitor", diff: "Intermediate", focus: "Neural Networks (Vision)" },
-  { phase: "III", m: 11, name: "Attention Visualizer", diff: "Advanced", focus: "Transformer Architecture" },
-  { phase: "III", m: 12, name: "Synthetic Dataset Engine", diff: "Advanced", focus: "LLM Pre-training Science" },
-  { phase: "III", m: 12, name: "Year-One Capstone", diff: "Intermediate", focus: "Portfolio Consolidation" },
-  { phase: "IV", m: 13, name: "Domain Expert Fine-tune", diff: "Advanced", focus: "LoRA Mastery" },
-  { phase: "IV", m: 14, name: "The VRAM Optimizer", diff: "Advanced", focus: "Quantization (GGUF/AWQ)" },
-  { phase: "IV", m: 15, name: "The 60% Differentiator", diff: "Master", focus: "Custom CUDA Kernels" },
-  { phase: "IV", m: 16, name: "Factory Security Audit", diff: "Advanced", focus: "GitHub Enterprise Admin" },
-  { phase: "V", m: 17, name: "Sovereign PDF Brain", diff: "Advanced", focus: "Local RAG Systems" },
-  { phase: "V", m: 18, name: "Autonomous Developer Swarm", diff: "Master", focus: "Agentic Systems (L15)" },
-  { phase: "V", m: 19, name: "Self-Evolving Assistant", diff: "Advanced", focus: "Memory & State Machines" },
-  { phase: "V", m: 20, name: "Safety Audit Report", diff: "Advanced", focus: "Red Teaming & Alignment" },
-  { phase: "VI", m: 21, name: "Ollama Desktop Client", diff: "Intermediate", focus: "Local Inference APIs" },
-  { phase: "VI", m: 22, name: "Sovereign Chat App", diff: "Advanced", focus: "Tauri & Rust Desktop Apps" },
-  { phase: "VI", m: 23, name: "Auto-Scaling Factory", diff: "Master", focus: "K3s Cluster Orchestration" },
-  { phase: "VI", m: 24, name: "The Cyber Factory Repo", diff: "Master", focus: "Final Stack Capstone" }
-];
-
-const CURRICULUM = [
-  {
-    phaseId: "p1", title: "Phase I: Hardware & Software Foundations", duration: "Months 1–4", goal: "Master the environment that hosts the Cyber Factory.",
-    months: [
-      {
-        id: "m1", title: "Month 1: The Linux Shell & Hardware Provisioning",
-        description: "Lay the bedrock of your local infrastructure. In this month, you will master the Unix shell, manage rigorous server permissions, and establish the base environment required for advanced GPU orchestration.",
-        course: "Essential Developer Tools: Terminal and UNIX", link: "https://www.rithmschool.com/courses/terminal/",
-        weeks: [
-          { id: "w1", text: "Week 1: Unix Shell (Bash/Zsh) & Navigation" },
-          { id: "w2", text: "Week 2: File permissions & SSH" },
-          { id: "w3", text: "Week 3: Environment variables" },
-          { id: "w4", text: "Week 4: Hardware & NVIDIA drivers/CUDA 12.4 Setup" }
-        ],
-        projects: ["L1 Foundation Script", "Sovereign Portfolio Hub"],
-        iq: "IQ: Detailed Visualization (Data flow from GPU to RAM)"
-      },
-      {
-        id: "m2", title: "Month 2: Full-Stack Web Logic",
-        description: "Construct the visual layer of your Cyber Factory. You will learn to build responsive, data-rich web interfaces that allow you to monitor hardware health and model inference in real-time.",
-        course: "HTML, CSS, and Javascript for Web Developers", link: "https://www.coursera.org/learn/html-css-javascript-for-web-developers",
-        weeks: [
-          { id: "w1", text: "Week 1: Semantic HTML5" },
-          { id: "w2", text: "Week 2: CSS3 Grid & Flexbox" },
-          { id: "w3", text: "Week 3: ES6+ JavaScript Core Logic" },
-          { id: "w4", text: "Week 4: Asynchronous Browser Rendering" }
-        ],
-        projects: ["Cyber Factory UI Dashboard"],
-        iq: "Method: Feynman Technique (Explain rendering without jargon)"
-      },
-      {
-        id: "m3", title: "Month 3: GitHub Mastery & Analytics",
-        description: "Establish your professional version control lifecycle. You will master branch management and integrate Python analytics to profile your operational data and code repositories.",
-        course: "Introduction to Git and GitHub", link: "https://www.coursera.org/learn/introduction-git-github",
-        weeks: [
-          { id: "w1", text: "Week 1: Git lifecycle (init, commit, merge)" },
-          { id: "w2", text: "Week 2: Branching strategies" },
-          { id: "w3", text: "Week 3: Markdown & Portfolio Design" },
-          { id: "w4", text: "Week 4: Basic Python Analytics Profiling" }
-        ],
-        projects: ["The Statistics Profiler"],
-        iq: "IQ: Dual N-Back Memory Training"
-      },
-      {
-        id: "m4", title: "Month 4: Type-Safe Backend with Node.js",
-        description: "Architect type-safe asynchronous routing. You will build resilient Node.js middleware to manage and authenticate traffic between your frontend dashboard and your local AI model endpoints.",
-        course: "Learn TypeScript: Fundamentals", link: "https://www.codecademy.com/learn/learn-typescript-fundamentals",
-        weeks: [
-          { id: "w1", text: "Week 1: Asynchronous programming" },
-          { id: "w2", text: "Week 2: Node.js File System (fs)" },
-          { id: "w3", text: "Week 3: TypeScript interfaces" },
-          { id: "w4", text: "Week 4: Local API Routing Logic" }
-        ],
-        projects: ["L5 AI Router Proxy"],
-        iq: "Method: Blank-Page Retrieval (Months 1-3)"
-      }
-    ]
-  },
-  {
-    phaseId: "p2", title: "Phase II: The AI Core - Mathematical Engines", duration: "Months 5–8", goal: "Master the 'why' behind model behavior.",
-    months: [
-      {
-        id: "m5", title: "Month 5: Linear Algebra & Matrix Calculus",
-        description: "Dive into the mathematical heart of AI. You will understand the vector spaces, massive matrix transformations, and eigenvalues that govern modern neural network weights and biases.",
-        course: "MIT 18.06: Linear Algebra", link: "https://ocw.mit.edu/courses/18-06-linear-algebra-spring-2010/",
-        weeks: [
-          { id: "w1", text: "Week 1: Vector spaces" },
-          { id: "w2", text: "Week 2: Eigenvalues & Eigenvectors" },
-          { id: "w3", text: "Week 3: Jacobians" },
-          { id: "w4", text: "Week 4: Chain Rule for backpropagation" }
-        ],
-        projects: ["Matrix Engine"],
-        iq: "IQ: Relational Reasoning (Pattern matching)"
-      },
-      {
-        id: "m6", title: "Month 6: Multivariable Calculus & Optimization",
-        description: "Master the mechanics of machine learning. Learn to visualize partial derivatives and gradient descent to mathematically prove how models minimize loss and iteratively learn.",
-        course: "Multivariable Calculus (Khan Academy)", link: "https://www.khanacademy.org/math/multivariable-calculus",
-        weeks: [
-          { id: "w1", text: "Week 1: Gradients" },
-          { id: "w2", text: "Week 2: Partial Derivatives" },
-          { id: "w3", text: "Week 3: Gradient Descent Mechanics" },
-          { id: "w4", text: "Week 4: 3D Weight Visualization" }
-        ],
-        projects: ["Loss Optimizer"],
-        iq: "Method: Interleaving (Math + Coding)"
-      },
-      {
-        id: "m7", title: "Month 7: Probability & Uncertainty",
-        description: "Quantify the unknown. Use Bayesian inference and entropy mathematics to measure model uncertainty, allowing you to mathematically score and prevent hallucination risks.",
-        course: "Data Science: Probability", link: "https://pll.harvard.edu/course/data-science-probability",
-        weeks: [
-          { id: "w1", text: "Week 1: Bayesian inference" },
-          { id: "w2", text: "Week 2: Random variables" },
-          { id: "w3", text: "Week 3: Entropy in prediction" },
-          { id: "w4", text: "Week 4: LLM Hallucination Mathematics" }
-        ],
-        projects: ["Hallucination Scorer"],
-        iq: "IQ: Strategic Chess"
-      },
-      {
-        id: "m8", title: "Month 8: GitHub Mastery 2 - MLOps",
-        description: "Automate your infrastructure. Design CI/CD pipelines and security scanning workflows to deploy, test, and validate model updates autonomously without human intervention.",
-        course: "Automate Workflows with GitHub Actions", link: "https://learn.microsoft.com/en-us/training/paths/automate-workflow-github-actions/",
-        weeks: [
-          { id: "w1", text: "Week 1: GitHub Actions" },
-          { id: "w2", text: "Week 2: CI/CD pipelines" },
-          { id: "w3", text: "Week 3: Secret scanning" },
-          { id: "w4", text: "Week 4: Automated Testing Triggers" }
-        ],
-        projects: ["Autonomous Deployer"],
-        iq: "Method: Self-Explanation of Backpropagation"
-      }
-    ]
-  },
-  {
-    phaseId: "p3", title: "Phase III: Deep Learning & Architectures", duration: "Months 9–12", goal: "Understanding the biological inspiration of AI.",
-    months: [
-      {
-        id: "m9", title: "Month 9: Python for AI Engineering",
-        description: "Engineer production-ready data pipelines. Clean, aggregate, and structure raw local data into high-quality formats using advanced Pandas and Scikit-learn architectures.",
-        course: "Machine Learning with Python", link: "https://www.coursera.org/learn/machine-learning-with-python",
-        weeks: [
-          { id: "w1", text: "Week 1: NumPy" },
-          { id: "w2", text: "Week 2: Pandas" },
-          { id: "w3", text: "Week 3: Scikit-learn" },
-          { id: "w4", text: "Week 4: Classical ML workflows & Data Cleaning" }
-        ],
-        projects: ["Sovereign Data Preprocessor"],
-        iq: "Method: Pipeline Mapping"
-      },
-      {
-        id: "m10", title: "Month 10: PyTorch Mechanics",
-        description: "Build neural architectures from scratch. Leverage PyTorch tensors and Autograd mechanisms to construct advanced vision models for local hardware security monitoring.",
-        course: "Deep Neural Networks with PyTorch", link: "https://www.coursera.org/learn/deep-neural-networks-with-pytorch",
-        weeks: [
-          { id: "w1", text: "Week 1: Tensors" },
-          { id: "w2", text: "Week 2: Autograd" },
-          { id: "w3", text: "Week 3: CNNs (Vision)" },
-          { id: "w4", text: "Week 4: RNNs (Text)" }
-        ],
-        projects: ["Visual Security Monitor"],
-        iq: "Method: Architecture Replication"
-      },
-      {
-        id: "m11", title: "Month 11: Transformer Architecture",
-        description: "Deconstruct the engine of modern AI. Plot and mathematically analyze the Query/Key/Value projections and Multi-Head Attention mechanisms inside open-weights models.",
-        course: "Generative AI with Large Language Models", link: "https://www.coursera.org/learn/generative-ai-with-llms",
-        weeks: [
-          { id: "w1", text: "Week 1: Multi-Head Attention" },
-          { id: "w2", text: "Week 2: Positional Encoding" },
-          { id: "w3", text: "Week 3: Encoder-Decoder logic" },
-          { id: "w4", text: "Week 4: Attention Weight Extraction" }
-        ],
-        projects: ["Attention Visualizer"],
-        iq: "IQ: Matrix Visualization"
-      },
-      {
-        id: "m12", title: "Month 12: Pre-training & Ethics",
-        description: "Generate synthetic knowledge. Explore scaling laws and utilize local teacher models to curate and filter high-quality instruction datasets for your private factory.",
-        course: "CS50 AI (Harvard)", link: "https://cs50.harvard.edu/ai/",
-        weeks: [
-          { id: "w1", text: "Week 1: Data scaling laws" },
-          { id: "w2", text: "Week 2: Distributed training (vLLM)" },
-          { id: "w3", text: "Week 3: Bias Mitigation" },
-          { id: "w4", text: "Week 4: Synthetic Data Generation" }
-        ],
-        projects: ["Synthetic Dataset Engine", "Year-One Capstone"],
-        iq: "Method: Year 1 Retrieval Test"
-      }
-    ]
-  },
-  {
-    phaseId: "p4", title: "Phase IV: Model Engineering & Optimization", duration: "Months 13–16", goal: "Become a 'Pro' by mastering local hardware efficiency.",
-    months: [
-      {
-        id: "m13", title: "Month 13: Parameter-Efficient Fine-Tuning",
-        description: "Specialize your models efficiently. Master LoRA mathematics and adapter merging to inject highly specific domain knowledge into your base fleet without retraining.",
-        course: "Fine-Tuning Large Language Models", link: "https://huggingface.co/learn/nlp-course/chapter3/1",
-        weeks: [
-          { id: "w1", text: "Week 1: Low-rank matrices" },
-          { id: "w2", text: "Week 2: NF4 quantization" },
-          { id: "w3", text: "Week 3: Adapter merging" },
-          { id: "w4", text: "Week 4: Unsloth Library Integration" }
-        ],
-        projects: ["Domain Expert Fine-tune"],
-        iq: "IQ: Weight Logic Visualization"
-      },
-      {
-        id: "m14", title: "Month 14: Quantization Science",
-        description: "Maximize VRAM utilization. Compare GGUF and AWQ formats, and master weight compression science to run massive, highly-capable models on consumer-grade GPUs.",
-        course: "Optimum Quantization Guide", link: "https://huggingface.co/docs/optimum/concept_guides/quantization",
-        weeks: [
-          { id: "w1", text: "Week 1: Weight compression (16-bit to 4-bit)" },
-          { id: "w2", text: "Week 2: PagedAttention" },
-          { id: "w3", text: "Week 3: vLLM clusters" },
-          { id: "w4", text: "Week 4: GGUF vs AWQ Benchmarking" }
-        ],
-        projects: ["The VRAM Optimizer"],
-        iq: "IQ: Resource Allocation Puzzles"
-      },
-      {
-        id: "m15", title: "Month 15: CUDA & Kernel-Level Integration",
-        description: "Bypass high-level API overhead. Write custom C++ CUDA kernels to directly manipulate GPU streaming multiprocessors and vastly accelerate your attention calculations.",
-        course: "NVIDIA Deep Learning Institute: CUDA C/C++", link: "https://courses.nvidia.com/courses/course-v1:DLI+C-AC-01+V1/",
-        weeks: [
-          { id: "w1", text: "Week 1: GPU architecture" },
-          { id: "w2", text: "Week 2: Memory layouts" },
-          { id: "w3", text: "Week 3: Custom kernels writing" },
-          { id: "w4", text: "Week 4: API Overhead Bypassing" }
-        ],
-        projects: ["The 60% Differentiator"],
-        iq: "IQ: Matrix Reasoning (3D Spatial)"
-      },
-      {
-        id: "m16", title: "Month 16: GitHub Mastery 3",
-        description: "Govern the factory. Implement enterprise-grade repository rulesets, SAML SSO, and strict data leakage prevention policies to ensure complete sovereign security.",
-        course: "GitHub Foundations", link: "https://learn.microsoft.com/en-us/credentials/certifications/github-foundations/",
-        weeks: [
-          { id: "w1", text: "Week 1: Enterprise Governance" },
-          { id: "w2", text: "Week 2: SAML SSO" },
-          { id: "w3", text: "Week 3: Repo Security Policies" },
-          { id: "w4", text: "Week 4: Data Leakage Prevention" }
-        ],
-        projects: ["Factory Security Audit"],
-        iq: "Method: Security Rule Structuring"
-      }
-    ]
-  },
-  {
-    phaseId: "p5", title: "Phase V: Agentic Systems & Multi-Agent Swarms", duration: "Months 17–20", goal: "Autonomous logic and memory.",
-    months: [
-      {
-        id: "m17", title: "Month 17: Retrieval-Augmented Generation",
-        description: "Give your AI accurate, private context. Deploy local vector databases, master semantic chunking algorithms, and build highly-cited knowledge retrieval pipelines.",
-        course: "Retrieval-Augmented Generation", link: "https://www.pinecone.io/learn/retrieval-augmented-generation/",
-        weeks: [
-          { id: "w1", text: "Week 1: Vector databases (ChromaDB, Pinecone)" },
-          { id: "w2", text: "Week 2: Semantic chunking" },
-          { id: "w3", text: "Week 3: Embeddings" },
-          { id: "w4", text: "Week 4: RAG Citation Mechanics" }
-        ],
-        projects: ["Sovereign PDF Brain"],
-        iq: "IQ: Information Graphing"
-      },
-      {
-        id: "m18", title: "Month 18: Agentic Workflows",
-        description: "Orchestrate autonomous labor. Combine tool-use function calling and agentic frameworks to build swarms that can code, test, and execute complex workflows without supervision.",
-        course: "AI Agents Course", link: "https://huggingface.co/learn/agents-course/unit0/introduction",
-        weeks: [
-          { id: "w1", text: "Week 1: Function calling" },
-          { id: "w2", text: "Week 2: Multi-agent orchestration" },
-          { id: "w3", text: "Week 3: crewAI implementation" },
-          { id: "w4", text: "Week 4: LangGraph integration" }
-        ],
-        projects: ["Autonomous Developer Swarm"],
-        iq: "IQ: Delegation Logic"
-      },
-      {
-        id: "m19", title: "Month 19: Long-Term Memory",
-        description: "Solve context window amnesia. Integrate graph databases to grant your agent swarms persistent memory and cross-session contextual awareness.",
-        course: "LLM Fundamentals with Neo4j", link: "https://graphacademy.neo4j.com/courses/llm-fundamentals/",
-        weeks: [
-          { id: "w1", text: "Week 1: Persistent memory (Mem0)" },
-          { id: "w2", text: "Week 2: Graph databases (Neo4j)" },
-          { id: "w3", text: "Week 3: Programmatic Governed Inference" },
-          { id: "w4", text: "Week 4: Cross-session State Machines" }
-        ],
-        projects: ["Self-Evolving Assistant"],
-        iq: "IQ: Memory Pathing"
-      },
-      {
-        id: "m20", title: "Month 20: Red Teaming & Safety",
-        description: "Fortify the perimeter. Perform rigorous red-teaming against prompt injections, jailbreaks, and adversarial attacks to secure your autonomous systems.",
-        options: [
-          { type: "Free", course: "OWASP Top 10 for LLMs", link: "https://genai.owasp.org/" },
-          { type: "Paid", course: "AI Security Masterclass", link: "https://learnprompting.org/courses/ai-security-masterclass" }
-        ],
-        weeks: [
-          { id: "w1", text: "Week 1: Prompt injection" },
-          { id: "w2", text: "Week 2: Jailbreaking defense" },
-          { id: "w3", text: "Week 3: LLM-as-a-Judge" },
-          { id: "w4", text: "Week 4: Red Team Auditing" }
-        ],
-        projects: ["Safety Audit Report"],
-        iq: "IQ: Adversarial Thinking"
-      }
-    ]
-  },
-  {
-    phaseId: "p6", title: "Phase VI: Distribution & Production Mastery", duration: "Months 21–24", goal: "Deploying AI as professional software.",
-    months: [
-      {
-        id: "m21", title: "Month 21: Local Inference Engines",
-        description: "Serve the fleet. Standardize your unified API gateways to securely expose high-speed local inference to your broader private network.",
-        course: "Ollama Official Documentation", link: "https://github.com/ollama/ollama",
-        weeks: [
-          { id: "w1", text: "Week 1: Ollama Configuration" },
-          { id: "w2", text: "Week 2: Llama.cpp compilation" },
-          { id: "w3", text: "Week 3: LiteLLM unified gateways" },
-          { id: "w4", text: "Week 4: API Serving & CLI Design" }
-        ],
-        projects: ["Ollama Desktop Client"],
-        iq: "IQ: Logic Architecture"
-      },
-      {
-        id: "m22", title: "Month 22: Desktop Application Packaging",
-        description: "Package AI into native software. Bundle your local inference engines into sleek, cross-platform desktop applications using the Rust programming language and Tauri.",
-        course: "Tauri + React Setup", link: "https://tauri.app/v1/guides/getting-started/setup/react/",
-        weeks: [
-          { id: "w1", text: "Week 1: Bundling local AI" },
-          { id: "w2", text: "Week 2: Cross-platform software (.dmg/.exe)" },
-          { id: "w3", text: "Week 3: Tauri (Rust) Integration" },
-          { id: "w4", text: "Week 4: Embedded local inference" }
-        ],
-        projects: ["Sovereign Chat App"],
-        iq: "Method: Native Mapping"
-      },
-      {
-        id: "m23", title: "Month 23: Scalable MLOps",
-        description: "Ensure infinite scalability. Dockerize your models and orchestrate them with K3s Kubernetes to automatically spawn nodes based on inference request volume.",
-        course: "MLOps: Machine Learning Operations", link: "https://www.coursera.org/learn/mlops-fundamentals",
-        weeks: [
-          { id: "w1", text: "Week 1: Docker for AI" },
-          { id: "w2", text: "Week 2: K3s Kubernetes" },
-          { id: "w3", text: "Week 3: Model registry governance" },
-          { id: "w4", text: "Week 4: Node Auto-scaling based on volume" }
-        ],
-        projects: ["Auto-Scaling Factory"],
-        iq: "IQ: Load Balancing"
-      },
-      {
-        id: "m24", title: "Month 24: Final Portfolio & Capstone",
-        description: "Complete the Cyber Factory. Synthesize the 17-layer stack, benchmark your hardware gains, and document your comprehensive portfolio for the world.",
-        course: "Open Source Guide", link: "https://opensource.guide/",
-        weeks: [
-          { id: "w1", text: "Week 1: Finalize 'Cyber Factory' Repo" },
-          { id: "w2", text: "Week 2: Document 60% hardware performance gain" },
-          { id: "w3", text: "Week 3: Open-source documentation" },
-          { id: "w4", text: "Week 4: Final Stack Testing" }
-        ],
-        projects: ["The Cyber Factory Repo"],
-        iq: "Method: Full Synthesis"
-      }
-    ]
-  },
-  {
-    phaseId: "p7", title: "Phase VII: Career Launch", duration: "Months 25–26", goal: "Secure the 20-45+ LPA package.",
-    months: [
-      {
-        id: "m25", title: "Month 25: Interview Blitz",
-        description: "Defend your architecture. Master the system design interview by eloquently defending your data sovereignty choices and custom hardware-level optimizations.",
-        course: "Career Guide and Interview Prep", link: "https://www.coursera.org/learn/career-guide-and-interview-prep-for-data-science-pc",
-        weeks: [
-          { id: "w1", text: "Week 1: System Design Interview" },
-          { id: "w2", text: "Week 2: Architectural Defense Practice" },
-          { id: "w3", text: "Week 3: Data sovereignty reasoning" },
-          { id: "w4", text: "Week 4: Portfolio presentation skills" }
-        ],
-        projects: ["Mock Interview Completion"],
-        iq: "IQ: Communication Drills"
-      },
-      {
-        id: "m26", title: "Month 26: Placement & Graduation",
-        description: "Launch your career. Leverage your irrefutable technical moat to bypass automated screening and secure top decile placements in global innovation hubs.",
-        course: "Wellfound Job Portal", link: "https://wellfound.com/jobs",
-        weeks: [
-          { id: "w1", text: "Week 1: Apply to elite product firms" },
-          { id: "w2", text: "Week 2: Bypass ATS using GitHub Portfolio" },
-          { id: "w3", text: "Week 3: Offer Evaluation" },
-          { id: "w4", text: "Week 4: Onboarding" }
-        ],
-        projects: ["Job Secured"],
-        iq: "Method: Future Mapping"
-      }
-    ]
-  }
-];
+const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch { /* storage unavailable */ } };
+const lsDel = (k) => { try { localStorage.removeItem(k); } catch { /* storage unavailable */ } };
+function readLocal() {
+  try {
+    const v = JSON.parse(lsGet(LS_PROGRESS) || '{}');
+    return v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+  } catch { return {}; }
+}
+const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 export default function App() {
   const [user, setUser] = useState(null);
-  const [progress, setProgress] = useState({});
-  const [darkMode, setDarkMode] = useState(true);
-  const [activePhase, setActivePhase] = useState("p1");
+  const [progress, setProgress] = useState(readLocal);
+  const [darkMode, setDarkMode] = useState(() => {
+    const t = lsGet(LS_THEME);
+    return t ? t === 'dark' : !!window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+  });
+  const [activePhase, setActivePhase] = useState('p1');
   const [activeMonth, setActiveMonth] = useState(null);
   const [showReset, setShowReset] = useState(false);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
-  
-  // Profile Menu Toggle State
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const menuRef = useRef(null);
+  const [bannerOpen, setBannerOpen] = useState(() => lsGet(LS_BANNER) !== '1');
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
 
-  // Theme Init
-  useEffect(() => {
-    if (darkMode) document.documentElement.classList.add('dark');
-    else document.documentElement.classList.remove('dark');
-  }, [darkMode]);
-
-  // Handle clicking outside the profile menu
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setShowProfileMenu(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [menuRef]);
-
-  // Auth Listener
-  useEffect(() => {
-    const unsubAuth = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setIsAuthLoading(false);
-    });
-    return () => unsubAuth();
+  const notify = useCallback((msg, type = 'info') => {
+    setToast({ msg, type });
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 4500);
   }, []);
 
-  // Database Listener
   useEffect(() => {
-    if (!user) {
-      setProgress({});
-      return;
-    }
-    const docRef = doc(db, collectionId, user.uid);
-    const unsub = onSnapshot(docRef, (snap) => {
-      if (snap.exists()) setProgress(snap.data().state || {});
-      else setProgress({});
-    });
-    return unsub;
-  }, [user]);
+    document.documentElement.classList.toggle('dark', darkMode);
+    lsSet(LS_THEME, darkMode ? 'dark' : 'light');
+  }, [darkMode]);
 
-  const handleLogin = async () => {
+  // Auth state (also completes a redirect sign-in).
+  useEffect(() => {
+    getRedirectResult(auth).catch((e) => notify(`Sign-in failed: ${e.code || e.message}`, 'error'));
+    return onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      if (!u) setProgress(readLocal());
+    });
+  }, [notify]);
+
+  // Cloud sync: merge local progress in on first snapshot, then live-sync.
+  useEffect(() => {
+    if (!user) return undefined;
+    const ref = doc(db, COLLECTION, user.uid);
+    let first = true;
+    return onSnapshot(ref, (snap) => {
+      const cloud = snap.exists() ? snap.data().state || {} : {};
+      if (first) {
+        first = false;
+        const local = readLocal();
+        const merged = mergeProgress(cloud, local);
+        if (!sameProgress(merged, cloud)) {
+          setProgress(merged);
+          setDoc(ref, { state: merged }, { merge: true })
+            .then(() => lsDel(LS_PROGRESS))
+            .catch((e) => notify(`Could not sync progress: ${e.code || e.message}`, 'error'));
+          return;
+        }
+        lsDel(LS_PROGRESS);
+      }
+      setProgress(cloud);
+    }, (e) => notify(`Sync error: ${e.code || e.message}`, 'error'));
+  }, [user, notify]);
+
+  const stats = useMemo(() => computeStats(CURRICULUM, progress), [progress]);
+  const next = useMemo(() => findNextTask(CURRICULUM, progress), [progress]);
+
+  // Optimistic local update, then persist to cloud or localStorage.
+  const save = useCallback((nextState, merge = true) => {
+    setProgress(nextState);
+    if (user) {
+      setDoc(doc(db, COLLECTION, user.uid), { state: nextState }, merge ? { merge: true } : undefined)
+        .catch((e) => notify(`Could not save: ${e.code || e.message}`, 'error'));
+    } else {
+      lsSet(LS_PROGRESS, JSON.stringify(nextState));
+    }
+  }, [user, notify]);
+
+  const toggle = (key) => {
+    const nextState = { ...progress, [key]: !progress[key] };
+    const monthId = key.split('_')[0];
+    const after = computeStats(CURRICULUM, nextState).months[monthId];
+    if (after?.complete && !stats.months[monthId]?.complete) {
+      const title = CURRICULUM.flatMap((p) => p.months).find((m) => m.id === monthId)?.title.split(':')[0];
+      notify(`${title} complete. Nicely done.`);
+    }
+    save(nextState);
+  };
+
+  const signIn = async () => {
     try {
       await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error("Login failed:", error);
-      alert("Failed to log in. Please check your console.");
+    } catch (e) {
+      if (e.code === 'auth/popup-blocked') {
+        try { await signInWithRedirect(auth, provider); } catch (e2) { notify(`Sign-in failed: ${e2.code || e2.message}`, 'error'); }
+      } else if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
+        notify(`Sign-in failed: ${e.code || e.message}`, 'error');
+      }
     }
   };
+  const signOutUser = () => signOut(auth).catch((e) => notify(`Sign-out failed: ${e.code || e.message}`, 'error'));
 
-  const handleLogout = async () => {
+  const reset = () => { save({}, false); setShowReset(false); };
+
+  const exportProgress = () => {
+    const trueKeys = Object.fromEntries(Object.keys(progress).filter((k) => progress[k] === true).map((k) => [k, true]));
+    const url = URL.createObjectURL(new Blob([JSON.stringify(trueKeys, null, 2)], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = 'lurnex-progress.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const importProgress = async (file) => {
     try {
-      await signOut(auth);
-      setShowProfileMenu(false);
-    } catch (error) {
-      console.error("Logout failed:", error);
+      const clean = validateImport(JSON.parse(await file.text()), CURRICULUM);
+      if (!clean) return notify('Import failed: file must be an object of true/false values for known task keys.', 'error');
+      save(mergeProgress(progress, clean));
+      notify(`Imported ${Object.keys(clean).length} completed tasks (merged with current progress).`);
+    } catch {
+      notify('Import failed: not a valid JSON file.', 'error');
     }
   };
 
-  const toggleProgress = async (key) => {
-    if (!user) return;
-    const newState = { ...progress, [key]: !progress[key] };
-    const docRef = doc(db, collectionId, user.uid);
-    await setDoc(docRef, { state: newState }, { merge: true });
-  };
+  const scrollTo = (id) => setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'center' }), 350);
+  const jump = (t) => { setActivePhase(t.phaseId); setActiveMonth(t.monthId); scrollTo(`task-${t.key}`); };
+  const openPhase = (id) => { setActivePhase(id); scrollTo(`phase-${id}`); };
 
-  const resetProgress = async () => {
-    if (!user) return;
-    const docRef = doc(db, collectionId, user.uid);
-    await setDoc(docRef, { state: {} });
-    setShowReset(false);
-  };
+  const dismissBanner = () => { setBannerOpen(false); lsSet(LS_BANNER, '1'); };
 
-  const stats = useMemo(() => {
-    let total = 0;
-    CURRICULUM.forEach(p => p.months.forEach(m => {
-      total += m.weeks.length + m.projects.length + 1; // +1 for IQ
-    }));
-    const completed = Object.values(progress).filter(Boolean).length;
-    const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
-    return { total, completed, percent };
-  }, [progress]);
-
-  // --- LOADING SCREEN ---
-  if (isAuthLoading) {
-    return (
-      <div className={`min-h-screen flex items-center justify-center ${darkMode ? 'bg-slate-950' : 'bg-slate-50'}`}>
-        <Zap className="animate-pulse w-12 h-12 text-teal-500" />
-      </div>
-    );
-  }
-
-  // --- LANDING PAGE (LOGIN WALL) ---
-  if (!user) {
-    return (
-      <div className={`min-h-screen flex flex-col transition-colors duration-300 font-sans ${darkMode ? 'bg-slate-950 text-slate-200' : 'bg-slate-50 text-slate-800'}`}>
-         <nav className="p-6 flex justify-end">
-           <div className={`flex rounded-lg p-1 ${darkMode ? 'bg-slate-900' : 'bg-slate-200'}`}>
-              <button onClick={() => setDarkMode(false)} className={`p-2 rounded-md transition-all ${!darkMode ? 'bg-white shadow-sm text-amber-500' : 'text-slate-500'}`}><Sun size={18} /></button>
-              <button onClick={() => setDarkMode(true)} className={`p-2 rounded-md transition-all ${darkMode ? 'bg-slate-800 shadow-sm text-indigo-400' : 'text-slate-500'}`}><Moon size={18} /></button>
-           </div>
-         </nav>
-
-         <div className="flex-1 flex items-center justify-center p-6">
-           <div className={`max-w-xl w-full p-10 md:p-12 rounded-[3rem] border text-center shadow-2xl ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-              <div className="w-20 h-20 bg-teal-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-lg shadow-teal-500/30">
-                 <Cpu size={40} className="text-white" />
-              </div>
-              <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-4">Datexia Lurnex LMS</h1>
-              <h2 className="text-sm font-bold text-teal-600 dark:text-teal-400 uppercase tracking-widest mb-6">Sovereign AI Architect Program</h2>
-              
-              <p className={`text-sm md:text-base leading-relaxed mb-10 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                Welcome to your personal learning portal and habit tracker. This platform is designed to guide you through a 26-month journey to master local AI infrastructure, track your weekly progressions, and build an elite technical moat. 
-                <br/><br/>
-                Please sign in to access the curriculum, save your progress securely to the cloud, and begin your transformation.
-              </p>
-
-              <button 
-                onClick={handleLogin} 
-                className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl font-black text-lg transition-all shadow-xl shadow-teal-500/20"
-              >
-                <LogIn size={24} /> Sign in with Google
-              </button>
-           </div>
-         </div>
-      </div>
-    );
-  }
-
-  // --- FULL LMS APPLICATION (AUTHENTICATED ONLY) ---
   return (
-    <div className={`min-h-screen transition-colors duration-300 font-sans ${darkMode ? 'bg-slate-950 text-slate-200' : 'bg-slate-50 text-slate-800'}`}>
-      
-      {/* NAVIGATION */}
-      <nav className={`sticky top-0 z-50 border-b backdrop-blur-xl px-6 py-4 ${darkMode ? 'bg-slate-950/80 border-slate-800' : 'bg-white/80 border-slate-200'}`}>
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-teal-600 p-2 rounded-lg text-white"><Cpu size={24} /></div>
-            <div>
-              <h1 className="font-bold text-lg leading-tight uppercase tracking-wide hidden sm:block">Datexia Lurnex LMS</h1>
-              <h1 className="font-bold text-lg leading-tight uppercase tracking-wide sm:hidden">Datexia LMS</h1>
-              <p className="text-xs text-teal-600 dark:text-teal-400 font-semibold tracking-widest">Sovereign AI Architect</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <div className="hidden md:flex flex-col items-end mr-4">
-              <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Program Completion</span>
-              <span className="text-lg font-mono font-bold text-teal-500 leading-none">{stats.percent}%</span>
-            </div>
-            
-            <div className={`flex rounded-lg p-1 hidden sm:flex ${darkMode ? 'bg-slate-900' : 'bg-slate-100'}`}>
-              <button onClick={() => setDarkMode(false)} className={`p-2 rounded-md transition-all ${!darkMode ? 'bg-white shadow-sm text-amber-500' : 'text-slate-500'}`}><Sun size={18} /></button>
-              <button onClick={() => setDarkMode(true)} className={`p-2 rounded-md transition-all ${darkMode ? 'bg-slate-800 shadow-sm text-indigo-400' : 'text-slate-500'}`}><Moon size={18} /></button>
-            </div>
-            
-            <button onClick={() => setShowReset(true)} className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all hidden sm:block" title="Reset Progress"><RotateCcw size={20} /></button>
+    <div className="min-h-screen overflow-x-clip font-sans">
+      <Nav user={user} percent={stats.percent} darkMode={darkMode} setDarkMode={setDarkMode} onSignIn={signIn} onSignOut={signOutUser}
+        onExport={exportProgress} onImport={importProgress} onReset={() => setShowReset(true)} />
 
-            {/* --- GOOGLE PROFILE & LOGOUT DROPDOWN --- */}
-            <div className="relative" ref={menuRef}>
-               <button
-                 onClick={() => setShowProfileMenu(!showProfileMenu)}
-                 className={`flex items-center gap-2 px-2 py-1.5 sm:px-3 sm:py-2 rounded-full transition-colors border ${darkMode ? 'bg-slate-900 hover:bg-slate-800 border-slate-700' : 'bg-white hover:bg-slate-100 border-slate-300'}`}
-               >
-                 {user.photoURL ? (
-                   <img src={user.photoURL} alt="Profile" className="w-6 h-6 sm:w-7 sm:h-7 rounded-full object-cover" />
-                 ) : (
-                   <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-teal-600 flex items-center justify-center text-white text-xs font-bold">
-                     {user.displayName ? user.displayName[0].toUpperCase() : 'U'}
-                   </div>
-                 )}
-                 <span className="text-sm font-bold hidden sm:block max-w-[120px] truncate">{user.displayName || 'User'}</span>
-                 <ChevronDown size={14} className="opacity-60 hidden sm:block"/>
-               </button>
-
-               {showProfileMenu && (
-                 <div className={`absolute right-0 mt-3 w-56 border rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-                   <div className={`px-4 py-4 border-b ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
-                     <p className="text-sm font-bold truncate">{user.displayName || 'Architect'}</p>
-                     <p className="text-xs text-slate-500 truncate">{user.email}</p>
-                   </div>
-                   
-                   {/* Mobile only controls inside dropdown */}
-                   <div className={`sm:hidden px-4 py-3 border-b flex justify-between items-center ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
-                      <span className="text-xs font-bold uppercase tracking-widest text-slate-500">Theme</span>
-                      <div className={`flex rounded-lg p-1 ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
-                        <button onClick={() => setDarkMode(false)} className={`p-1.5 rounded-md ${!darkMode ? 'bg-white shadow-sm text-amber-500' : 'text-slate-500'}`}><Sun size={14} /></button>
-                        <button onClick={() => setDarkMode(true)} className={`p-1.5 rounded-md ${darkMode ? 'bg-slate-900 shadow-sm text-indigo-400' : 'text-slate-500'}`}><Moon size={14} /></button>
-                      </div>
-                   </div>
-                   
-                   <button
-                     onClick={handleLogout}
-                     className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-red-500/10 transition-colors font-bold text-left"
-                   >
-                     <LogOut size={18} /> Sign Out
-                   </button>
-                 </div>
-               )}
-            </div>
-
-          </div>
-        </div>
-      </nav>
-
-      {/* HERO SECTION */}
-      <header className={`py-16 md:py-24 px-6 border-b ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl md:text-5xl font-black mb-8 tracking-tight">From API Consumer to<br/> <span className="text-teal-600 dark:text-teal-400">Sovereign Architect</span></h2>
-          <div className={`text-lg md:text-xl leading-relaxed mb-10 space-y-6 text-left max-w-3xl mx-auto ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-            <p>
-              The transition from the era of centralized, cloud-dependent artificial intelligence to a decentralized, local, and sovereign framework represents the most significant paradigm shift in the technological landscape of 2026. Data privacy, latency, and soaring inference costs have forced enterprises to abandon public APIs in favor of self-hosted solutions.
-            </p>
-            <p>
-              This elite, 26-month pedagogical system moves you beyond the superficial "API-level" of AI consumption and dives deep into the "Kernel-level" of creation. By focusing on the full 17-layer operating system model—from raw hardware provisioning and CUDA/NVIDIA optimizations to the orchestration of autonomous, multi-agent swarms—you will build an impenetrable technical moat.
-            </p>
-            <p>
-              Integrating elite mathematical intuition from MIT and Harvard with the raw engineering power of GitHub and local hardware optimization, the <strong>Datexia Lurnex LMS</strong> guarantees a career resilient to the commoditization of base models. By the end of this transformative journey, you will not just be "using AI"—you will own the factory that produces it.
-            </p>
-          </div>
-          <div className="flex flex-wrap justify-center gap-6 text-sm font-bold uppercase tracking-widest">
-            <div className="flex items-center gap-2"><Zap className="text-amber-500" /> 26 Months</div>
-            <div className="flex items-center gap-2"><Code className="text-teal-500" /> 26 Projects</div>
-            <div className="flex items-center gap-2"><Briefcase className="text-indigo-500" /> Top Decile Placement</div>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-6 py-16 space-y-24">
-        
-        {/* CAREER SECTION */}
-        <section>
-          <h3 className="text-2xl font-black mb-8 flex items-center gap-3 uppercase tracking-wide"><Briefcase className="text-teal-500"/> 2026 Job Roles & Benchmarks</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {JOBS.map((job, idx) => (
-              <div key={idx} className={`p-6 rounded-2xl border transition-all hover:shadow-lg ${darkMode ? 'bg-slate-900 border-slate-800 hover:border-teal-500/50' : 'bg-white border-slate-200 hover:border-teal-500'}`}>
-                <h4 className="font-bold text-lg mb-1">{job.role}</h4>
-                <p className="text-teal-600 dark:text-teal-400 font-mono font-bold mb-3">{job.pay}</p>
-                <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>{job.desc}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* PROJECT ROADMAP TABLE */}
-        <section>
-          <h3 className="text-2xl font-black mb-8 flex items-center gap-3 uppercase tracking-wide"><Terminal className="text-teal-500"/> Complete Project Roadmap</h3>
-          <div className={`overflow-x-auto rounded-2xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className={`uppercase text-xs tracking-widest border-b ${darkMode ? 'bg-slate-950 text-slate-500 border-slate-800' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
-                  <th className="p-4">Phase</th>
-                  <th className="p-4">Month</th>
-                  <th className="p-4">Project Name</th>
-                  <th className="p-4">Difficulty</th>
-                  <th className="p-4">Core Focus</th>
-                </tr>
-              </thead>
-              <tbody className="text-sm">
-                {PROJECTS.map((p, idx) => (
-                  <tr key={idx} className={`border-b last:border-0 ${darkMode ? 'border-slate-800 hover:bg-slate-800/50' : 'border-slate-100 hover:bg-slate-50'}`}>
-                    <td className="p-4 font-bold opacity-70">{p.phase}</td>
-                    <td className="p-4 font-mono">{p.m}</td>
-                    <td className="p-4 font-bold">{p.name}</td>
-                    <td className="p-4">
-                      <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase ${p.diff === 'Master' ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400' : p.diff === 'Advanced' ? 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400' : p.diff === 'Intermediate' ? 'bg-teal-500/20 text-teal-600 dark:text-teal-400' : 'bg-slate-500/20 text-slate-600 dark:text-slate-400'}`}>
-                        {p.diff}
-                      </span>
-                    </td>
-                    <td className="p-4 opacity-80">{p.focus}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        {/* INTERACTIVE COURSE TRACKER */}
-        <section id="tracker">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
-            <div>
-              <h3 className="text-2xl font-black flex items-center gap-3 uppercase tracking-wide mb-2"><BookOpen className="text-teal-500"/> Interactive Learning Curriculum</h3>
-              <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                Track your progress week-by-week. Click a phase to expand the months.
-              </p>
-            </div>
-            <div className={`px-6 py-3 rounded-xl border flex items-center gap-4 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-               <div className="flex flex-col">
-                 <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Tasks Completed</span>
-                 <span className="font-mono font-bold text-lg leading-none">{stats.completed} / {stats.total}</span>
-               </div>
-               <div className="w-24 h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                 <div className="h-full bg-teal-500 transition-all duration-500" style={{width: `${stats.percent}%`}} />
-               </div>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {CURRICULUM.map((phase) => {
-              const isPhaseOpen = activePhase === phase.phaseId;
-              
-              let pTotal = 0; let pDone = 0;
-              phase.months.forEach(m => {
-                pTotal += m.weeks.length + m.projects.length + 1;
-                m.weeks.forEach(w => progress[`${m.id}_${w.id}`] && pDone++);
-                m.projects.forEach((_, i) => progress[`${m.id}_p${i}`] && pDone++);
-                if (progress[`${m.id}_iq`]) pDone++;
-              });
-              const pPercent = pTotal > 0 ? Math.round((pDone/pTotal)*100) : 0;
-
-              return (
-                <div key={phase.phaseId} className={`rounded-2xl border transition-all ${darkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'} ${isPhaseOpen ? 'ring-2 ring-teal-500/20' : ''}`}>
-                  
-                  <div 
-                    onClick={() => setActivePhase(isPhaseOpen ? null : phase.phaseId)}
-                    className="p-6 cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4 select-none"
-                  >
-                    <div>
-                      <h4 className="font-black text-xl mb-1">{phase.title}</h4>
-                      <div className="flex items-center gap-3 text-sm opacity-70">
-                         <span className="font-mono bg-teal-500/10 text-teal-600 dark:text-teal-400 px-2 py-0.5 rounded font-bold">{phase.duration}</span>
-                         <span>Goal: {phase.goal}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-6">
-                      <div className="flex flex-col items-end hidden sm:flex">
-                        <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Phase Progress</span>
-                        <span className="font-mono font-bold text-teal-500">{pPercent}%</span>
-                      </div>
-                      {isPhaseOpen ? <ChevronDown size={24} className="opacity-50" /> : <ChevronRight size={24} className="opacity-50" />}
-                    </div>
-                  </div>
-
-                  {isPhaseOpen && (
-                    <div className={`p-6 pt-0 border-t ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
-                      <div className="mt-6 space-y-4">
-                        {phase.months.map((month) => {
-                          const isMonthOpen = activeMonth === month.id;
-                          
-                          let mTotal = month.weeks.length + month.projects.length + 1;
-                          let mDone = 0;
-                          month.weeks.forEach(w => progress[`${month.id}_${w.id}`] && mDone++);
-                          month.projects.forEach((_, i) => progress[`${month.id}_p${i}`] && mDone++);
-                          if (progress[`${month.id}_iq`]) mDone++;
-                          const isMonthComplete = mTotal === mDone && mTotal > 0;
-
-                          return (
-                            <div key={month.id} className={`rounded-xl border overflow-hidden transition-all ${darkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                              
-                              <div 
-                                onClick={() => setActiveMonth(isMonthOpen ? null : month.id)}
-                                className={`p-5 cursor-pointer flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${isMonthComplete ? 'bg-teal-500/5' : ''}`}
-                              >
-                                <div className="flex items-center gap-4">
-                                  {isMonthComplete ? <ShieldCheck className="text-teal-500" size={24} /> : <div className="w-6 h-6 rounded-full border-2 border-slate-400 dark:border-slate-600" />}
-                                  <h5 className="font-bold text-lg">{month.title}</h5>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                  <span className="text-xs font-mono opacity-60">{mDone}/{mTotal}</span>
-                                  {isMonthOpen ? <ChevronDown size={20} className="opacity-50" /> : <ChevronRight size={20} className="opacity-50" />}
-                                </div>
-                              </div>
-
-                              {isMonthOpen && (
-                                <div className={`p-6 border-t ${darkMode ? 'border-slate-800 bg-slate-900/50' : 'border-slate-200 bg-white'}`}>
-                                  
-                                  {/* Description Addition */}
-                                  <p className={`text-sm mb-6 leading-relaxed p-4 rounded-xl border ${darkMode ? 'bg-slate-950/50 border-slate-800/50 text-slate-400' : 'bg-white/50 border-slate-100 text-slate-600'}`}>
-                                    {month.description}
-                                  </p>
-
-                                  <div className="mb-8 space-y-3">
-                                    <p className="text-[10px] font-bold uppercase tracking-widest text-teal-600 dark:text-teal-400 px-1">Primary Study Material & Certification</p>
-
-                                    {/* Handle Free/Paid Split if options array exists (Month 20 logic) */}
-                                    {month.options ? (
-                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                         {month.options.map((opt, i) => (
-                                           <a key={i} href={opt.link} target="_blank" rel="noreferrer" className={`p-4 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors group ${darkMode ? 'bg-slate-900 border-slate-700 hover:border-teal-500' : 'bg-slate-50 border-slate-200 hover:border-teal-500'}`}>
-                                              <div>
-                                                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full mb-2 inline-block ${opt.type === 'Free' ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/20 text-amber-600 dark:text-amber-400'}`}>{opt.type} Route</span>
-                                                <p className="font-bold text-sm group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">{opt.course}</p>
-                                              </div>
-                                              <span className="inline-flex items-center gap-1 text-teal-600 dark:text-teal-400 font-bold text-xs whitespace-nowrap"><ExternalLink size={14}/> Access</span>
-                                           </a>
-                                         ))}
-                                      </div>
-                                    ) : (
-                                      <div className={`p-5 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-4 ${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                                        <p className="font-bold">{month.course}</p>
-                                        <a href={month.link} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-teal-500/20 whitespace-nowrap">
-                                          <GraduationCap size={18} /> Apply / Read
-                                        </a>
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    <div>
-                                      <h6 className="text-xs font-black uppercase tracking-widest opacity-50 mb-4 flex items-center gap-2"><BookOpen size={14}/> Weekly Curriculum</h6>
-                                      <div className="space-y-2">
-                                        {month.weeks.map(w => {
-                                          const key = `${month.id}_${w.id}`;
-                                          const isChecked = progress[key];
-                                          return (
-                                            <div key={w.id} onClick={() => toggleProgress(key)} className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer border transition-colors ${isChecked ? 'bg-teal-500/10 border-teal-500/30' : darkMode ? 'bg-slate-950 border-slate-800 hover:border-slate-600' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
-                                              <div className="mt-0.5">{isChecked ? <CheckSquare className="text-teal-500" size={18} /> : <Square className="opacity-30" size={18} />}</div>
-                                              <span className={`text-sm font-medium ${isChecked ? 'opacity-100 text-teal-700 dark:text-teal-300' : 'opacity-80'}`}>{w.text}</span>
-                                            </div>
-                                          )
-                                        })}
-                                      </div>
-                                    </div>
-
-                                    <div>
-                                      <h6 className="text-xs font-black uppercase tracking-widest opacity-50 mb-4 flex items-center gap-2"><Code size={14}/> Projects & Neuro-Sync</h6>
-                                      <div className="space-y-2 mb-6">
-                                        {month.projects.map((proj, i) => {
-                                          const key = `${month.id}_p${i}`;
-                                          const isChecked = progress[key];
-                                          return (
-                                            <div key={i} onClick={() => toggleProgress(key)} className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer border transition-colors ${isChecked ? 'bg-indigo-500/10 border-indigo-500/30' : darkMode ? 'bg-slate-950 border-slate-800 hover:border-slate-600' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
-                                              <div>{isChecked ? <CheckSquare className="text-indigo-500" size={18} /> : <Square className="opacity-30" size={18} />}</div>
-                                              <span className={`text-sm font-bold ${isChecked ? 'text-indigo-700 dark:text-indigo-300' : ''}`}>Project: {proj}</span>
-                                            </div>
-                                          )
-                                        })}
-                                      </div>
-                                      
-                                      <div 
-                                        onClick={() => toggleProgress(`${month.id}_iq`)} 
-                                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer border transition-colors ${progress[`${month.id}_iq`] ? 'bg-amber-500/10 border-amber-500/30' : darkMode ? 'bg-slate-950 border-slate-800 hover:border-slate-600' : 'bg-white border-slate-200 hover:border-slate-300'}`}
-                                      >
-                                          <div>{progress[`${month.id}_iq`] ? <CheckSquare className="text-amber-500" size={18} /> : <Square className="opacity-30" size={18} />}</div>
-                                          <span className={`text-sm font-bold flex items-center gap-2 ${progress[`${month.id}_iq`] ? 'text-amber-700 dark:text-amber-300' : ''}`}><Brain size={16}/> {month.iq}</span>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      </main>
-
-      {/* RESET MODAL */}
-      {showReset && (
-        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className={`max-w-sm w-full p-8 rounded-3xl shadow-2xl ${darkMode ? 'bg-slate-900 border border-slate-800' : 'bg-white'}`}>
-            <div className="bg-red-500/10 text-red-500 w-16 h-16 rounded-full flex items-center justify-center mb-6 mx-auto">
-              <RotateCcw size={32} />
-            </div>
-            <h3 className="text-2xl font-black text-center mb-2">Reset Tracking?</h3>
-            <p className="text-center opacity-70 mb-8 text-sm">This will clear all your checkboxes across all 26 months. This action cannot be undone.</p>
-            <div className="flex gap-4">
-              <button onClick={() => setShowReset(false)} className={`flex-1 py-3 rounded-xl font-bold transition-colors ${darkMode ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-800'}`}>Cancel</button>
-              <button onClick={resetProgress} className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold shadow-lg shadow-red-600/20 transition-all">Reset All</button>
-            </div>
+      {!user && bannerOpen && (
+        <div className="border-b border-teal-500/20 bg-teal-500/10 px-4 py-2.5 text-sm">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+            <p className="flex items-center gap-2"><Cloud size={16} className="shrink-0 text-teal-600 dark:text-teal-400" /> Progress is saved in this browser. <button onClick={signIn} className="ring-focus rounded font-bold text-teal-700 underline underline-offset-2 dark:text-teal-300">Sign in with Google to sync across devices</button></p>
+            <button aria-label="Dismiss sign-in banner" onClick={dismissBanner} className="ring-focus rounded p-1 hover:bg-black/5 dark:hover:bg-white/10"><X size={16} /></button>
           </div>
         </div>
       )}
 
+      <header className="relative overflow-hidden border-b border-slate-200 bg-white px-6 py-16 dark:border-slate-800 dark:bg-slate-900 md:py-24">
+        <div className="aurora" aria-hidden="true"><i /><i /><i /></div>
+        <div className="relative mx-auto max-w-4xl text-center">
+          <h2 className="mb-8 text-4xl font-black tracking-tight md:text-6xl">From API Consumer to<br /><span className="text-gradient">Sovereign Architect</span></h2>
+          <div className="mx-auto mb-10 max-w-3xl space-y-5 text-left text-lg leading-relaxed text-slate-600 dark:text-slate-400 md:text-xl">
+            <p>In 2026, privacy, latency and inference costs are pushing more teams toward self-hosted AI. This 26-month program takes you from the Unix shell to CUDA kernels and multi-agent systems, so you understand the stack instead of just calling it.</p>
+            <p>It pairs math from MIT and Harvard with hands-on GitHub, local-hardware and deployment practice. By the end you will not just be using AI. You will have built and shipped the system that runs it.</p>
+          </div>
+          <div className="flex flex-wrap justify-center gap-6 text-sm font-bold uppercase tracking-widest">
+            <div className="flex items-center gap-2"><Zap className="text-amber-500" /> 26 Months</div>
+            <div className="flex items-center gap-2"><Code className="text-teal-500" /> 26 Projects</div>
+            <div className="flex items-center gap-2"><Briefcase className="text-indigo-500" /> Career Launch</div>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-7xl space-y-16 px-4 py-12 sm:px-6 md:space-y-20 md:py-16">
+        <div className="space-y-4">
+          <ContinueCard next={next} curriculum={CURRICULUM} onJump={jump} />
+          <ProgressStrip stats={stats} curriculum={CURRICULUM} onOpenPhase={openPhase} />
+        </div>
+        <Jobs jobs={JOBS} />
+        <Roadmap projects={PROJECTS} />
+        <Curriculum curriculum={CURRICULUM} progress={progress} stats={stats} onToggle={toggle}
+          activePhase={activePhase} setActivePhase={setActivePhase} activeMonth={activeMonth} setActiveMonth={setActiveMonth} />
+      </main>
+
+      <Footer />
+      {showReset && <ResetModal onCancel={() => setShowReset(false)} onConfirm={reset} />}
+      <Toast toast={toast} />
     </div>
   );
 }
