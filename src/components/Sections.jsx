@@ -1,75 +1,78 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Briefcase, Terminal, RotateCcw, Github } from 'lucide-react';
 
-// Fade/slide in when scrolled into view (CSS handles reduced motion).
-export function Reveal({ children, className = '', ...rest }) {
-  const ref = useRef(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || typeof IntersectionObserver === 'undefined') { el?.classList.add('is-visible'); return; }
-    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { el.classList.add('is-visible'); io.disconnect(); } }, { rootMargin: '0px 0px -8% 0px' });
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-  return <div ref={ref} className={`reveal ${className}`} {...rest}>{children}</div>;
+const ext = { target: '_blank', rel: 'noopener noreferrer' };
+
+const STEPS = [
+  ['Open the next task', 'The Next up box always points at your first unticked task.'],
+  ['Study the linked course', 'Each month links one free or auditable course, from MIT to Hugging Face.'],
+  ['Tick what you finish', 'Weekly topics, the project and the study habit. A month turns ink when every box is ticked.'],
+  ['Sync if you like', 'Progress saves in this browser. Sign in with Google to carry it to any device.'],
+];
+
+export function Guide() {
+  return (
+    <section className="section" aria-labelledby="guide-title">
+      <div className="section__head">
+        <h2 id="guide-title">How it works</h2>
+        <a className="textlink" href="https://github.com/bibeksarkar001/Datexia-Lurnex-LMS/blob/main/USER_GUIDE.md" {...ext}>Read the full user guide</a>
+      </div>
+      <ol className="steps plain">
+        {STEPS.map(([h, p], i) => (
+          <li key={h}><p className="figure" aria-hidden="true">{i + 1}</p><h3>{h}</h3><p>{p}</p></li>
+        ))}
+      </ol>
+    </section>
+  );
 }
 
 export function Jobs({ jobs }) {
   return (
-    <section>
-      <h3 className="mb-8 flex items-center gap-3 text-2xl font-black uppercase tracking-wide"><Briefcase className="text-teal-500" /> 2026 Job Roles & Benchmarks</h3>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {jobs.map((job) => (
-          <Reveal key={job.role}>
-            <div className="card card-lift h-full p-6">
-              <h4 className="mb-1 text-lg font-bold">{job.role}</h4>
-              <p className="mb-3 font-mono font-bold text-teal-600 dark:text-teal-400">{job.pay}</p>
-              <p className="text-sm text-slate-600 dark:text-slate-400">{job.desc}</p>
-            </div>
-          </Reveal>
-        ))}
+    <section className="section" aria-labelledby="jobs-title">
+      <div className="section__head">
+        <h2 id="jobs-title">Roles this roadmap points to</h2>
+        <p className="label">Indicative 2026 India ranges. Check current market data before deciding.</p>
       </div>
-      <p className="mt-4 text-xs opacity-60">Indicative 2026 India salary ranges — research current market data before decisions.</p>
+      <div className="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Role</th><th scope="col">Pay, INR lakh a year</th><th scope="col">What the role does</th></tr></thead>
+          <tbody>
+            {jobs.map((j) => (
+              <tr key={j.role}>
+                <td className="strong">{j.role}</td>
+                <td className="nowrap">{j.pay.replace(/^INR\s*/, '').replace(/\s*LPA$/, '')}</td>
+                <td className="muted">{j.desc}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }
 
 const DIFFS = ['All', 'Beginner', 'Foundational', 'Intermediate', 'Advanced', 'Master'];
-const DIFF_STYLE = {
-  Master: 'bg-amber-500/20 text-amber-700 dark:text-amber-400',
-  Advanced: 'bg-indigo-500/20 text-indigo-700 dark:text-indigo-400',
-  Intermediate: 'bg-teal-500/20 text-teal-700 dark:text-teal-400',
-};
 
 export function Roadmap({ projects }) {
   const [diff, setDiff] = useState('All');
   const rows = diff === 'All' ? projects : projects.filter((p) => p.diff === diff);
   return (
-    <section>
-      <h3 className="mb-6 flex items-center gap-3 text-2xl font-black uppercase tracking-wide"><Terminal className="text-teal-500" /> Complete Project Roadmap</h3>
-      <div role="group" aria-label="Filter projects by difficulty" className="mb-4 flex flex-wrap gap-2">
-        {DIFFS.map((d) => (
-          <button key={d} onClick={() => setDiff(d)} aria-pressed={diff === d}
-            className={`ring-focus rounded-full border px-3 py-1 text-xs font-bold transition ${diff === d ? 'border-teal-600 bg-teal-600 text-white' : 'border-slate-300 hover:border-teal-500 dark:border-slate-700'}`}>
-            {d}
-          </button>
-        ))}
+    <section className="section" aria-labelledby="projects-title">
+      <div className="section__head">
+        <h2 id="projects-title">The project roadmap</h2>
+        <div className="tabs" role="group" aria-label="Filter by difficulty">
+          {DIFFS.map((d) => <button type="button" className="tab" key={d} aria-pressed={diff === d} onClick={() => setDiff(d)}>{d}</button>)}
+        </div>
       </div>
-      <div className="card overflow-x-auto">
-        <table className="w-full min-w-[640px] border-collapse text-left">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-widest text-slate-500 dark:border-slate-800 dark:bg-slate-950">
-              <th scope="col" className="p-4">Phase</th><th scope="col" className="p-4">Month</th><th scope="col" className="p-4">Project Name</th><th scope="col" className="p-4">Difficulty</th><th scope="col" className="p-4">Core Focus</th>
-            </tr>
-          </thead>
-          <tbody className="text-sm">
+      <div className="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Month</th><th scope="col">Project</th><th scope="col">Difficulty</th><th scope="col">Focus</th></tr></thead>
+          <tbody>
             {rows.map((p) => (
-              <tr key={p.name} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/50">
-                <td className="p-4 font-bold opacity-70">{p.phase}</td>
-                <td className="p-4 font-mono">{p.m}</td>
-                <td className="p-4 font-bold">{p.name}</td>
-                <td className="p-4"><span className={`rounded-md px-2 py-1 text-[10px] font-bold uppercase ${DIFF_STYLE[p.diff] || 'bg-slate-500/20 text-slate-700 dark:text-slate-400'}`}>{p.diff}</span></td>
-                <td className="p-4 opacity-80">{p.focus}</td>
+              <tr key={p.name}>
+                <td className="nowrap">{String(p.m).padStart(2, '0')}</td>
+                <td className="strong">{p.name}</td>
+                <td>{p.diff}</td>
+                <td>{p.focus}</td>
               </tr>
             ))}
           </tbody>
@@ -88,14 +91,13 @@ export function ResetModal({ onCancel, onConfirm }) {
     return () => document.removeEventListener('keydown', onKey);
   }, [onCancel]);
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-6 backdrop-blur-sm" onMouseDown={(e) => e.target === e.currentTarget && onCancel()}>
-      <div role="dialog" aria-modal="true" aria-labelledby="reset-title" aria-describedby="reset-desc" className="w-full max-w-sm rounded-3xl bg-white p-8 shadow-2xl dark:border dark:border-slate-800 dark:bg-slate-900">
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10 text-red-500"><RotateCcw size={32} /></div>
-        <h3 id="reset-title" className="mb-2 text-center text-2xl font-black">Reset Tracking?</h3>
-        <p id="reset-desc" className="mb-8 text-center text-sm opacity-70">This will clear all your checkboxes across all 26 months. This action cannot be undone.</p>
-        <div className="flex gap-4">
-          <button ref={cancelRef} onClick={onCancel} className="ring-focus flex-1 rounded-xl bg-slate-100 py-3 font-bold transition-colors hover:bg-slate-200 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700">Cancel</button>
-          <button onClick={onConfirm} className="ring-focus flex-1 rounded-xl bg-red-600 py-3 font-bold text-white shadow-lg shadow-red-600/20 transition-all hover:bg-red-700">Reset All</button>
+    <div className="scrim" onMouseDown={(e) => e.target === e.currentTarget && onCancel()}>
+      <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="reset-title" aria-describedby="reset-desc">
+        <h2 id="reset-title">Reset all progress?</h2>
+        <p id="reset-desc">This clears every ticked box across all 26 months. It cannot be undone.</p>
+        <div className="dialog__actions">
+          <button type="button" className="btn" ref={cancelRef} onClick={onCancel}>Cancel</button>
+          <button type="button" className="btn btn--danger btn--primary" onClick={onConfirm}>Reset progress</button>
         </div>
       </div>
     </div>
@@ -104,27 +106,38 @@ export function ResetModal({ onCancel, onConfirm }) {
 
 export function Toast({ toast }) {
   if (!toast) return null;
-  const tone = toast.type === 'error' ? 'border-red-500/50 bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-200' : 'border-teal-500/50 bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100';
-  return (
-    <div role="status" aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-4 z-[110] flex justify-center px-4">
-      <div className={`toast-in pointer-events-auto max-w-md rounded-xl border px-4 py-3 text-sm font-semibold shadow-xl ${tone}`}>{toast.msg}</div>
-    </div>
-  );
+  const err = toast.type === 'error';
+  return <div role={err ? 'alert' : 'status'} className={err ? 'toast toast--error' : 'toast'}>{toast.msg}</div>;
 }
 
 export function Footer() {
-  const link = 'ring-focus rounded underline-offset-4 hover:text-teal-600 hover:underline dark:hover:text-teal-400';
-  const ext = { target: '_blank', rel: 'noopener noreferrer' };
   return (
-    <footer className="border-t border-slate-200 px-6 py-10 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-400">
-      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 sm:flex-row">
-        <p>Made by bibeksarkar001</p>
-        <nav aria-label="Footer" className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
-          <a className={`${link} inline-flex items-center gap-1.5`} href="https://github.com/bibeksarkar001/Datexia-Lurnex-LMS" {...ext}><Github size={14} /> GitHub</a>
-          <a className={link} href="https://github.com/bibeksarkar001/Datexia-Lurnex-LMS/blob/main/USER_GUIDE.md" {...ext}>User Guide</a>
-          <a className={link} href="https://github.com/bibeksarkar001/Datexia-Lurnex-LMS/blob/main/LICENSE" {...ext}>MIT License</a>
-          <a className={link} href="https://bibeksarkar001.github.io/Datexia-Lurnex-LMS/">Classic version</a>
-        </nav>
+    <footer className="footer">
+      <div className="container footer__inner">
+        <div className="footer__brand">
+          <a className="wordmark" href="#main">Lurnex</a>
+          <p>A free, open-source study tracker for the Sovereign AI Architect roadmap.</p>
+          <p className="label">MIT licensed. Made by bibeksarkar001.</p>
+        </div>
+        <div className="footer__cols">
+          <div>
+            <h2>Project</h2>
+            <ul className="plain">
+              <li><a className="textlink" href="https://github.com/bibeksarkar001/Datexia-Lurnex-LMS" {...ext}>GitHub</a></li>
+              <li><a className="textlink" href="https://github.com/bibeksarkar001/Datexia-Lurnex-LMS/blob/main/USER_GUIDE.md" {...ext}>User guide</a></li>
+              <li><a className="textlink" href="https://github.com/bibeksarkar001/Datexia-Lurnex-LMS/issues/new?template=broken_link.yml" {...ext}>Report a broken link</a></li>
+              <li><a className="textlink" href="https://github.com/bibeksarkar001/Datexia-Lurnex-LMS/blob/main/LICENSE" {...ext}>MIT license</a></li>
+            </ul>
+          </div>
+          <div>
+            <h2>Versions</h2>
+            <ul className="plain">
+              <li><a className="textlink" href="#main" aria-current="page">v3, this design</a></li>
+              <li><a className="textlink" href="https://bibeksarkar001.github.io/Datexia-Lurnex-LMS/v2/">v2</a></li>
+              <li><a className="textlink" href="https://bibeksarkar001.github.io/Datexia-Lurnex-LMS/">Classic v1</a></li>
+            </ul>
+          </div>
+        </div>
       </div>
     </footer>
   );

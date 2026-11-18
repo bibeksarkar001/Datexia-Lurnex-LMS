@@ -1,15 +1,15 @@
 // Course data. Progress keys: <monthId>_<weekId>, <monthId>_p<i>, <monthId>_iq (do not change).
 export const JOBS = [
-  { role: "Sovereign AI Architect", pay: "INR 35 – 65+ LPA", desc: "Designs private, 17-layer 'Cyber Factories' for enterprises." },
-  { role: "CUDA Kernel Engineer", pay: "INR 40 – 60 LPA", desc: "Optimizes hardware-level model performance (60%+ gains)." },
-  { role: "Product-Minded AI Lead", pay: "INR 45 – 80+ LPA", desc: "Bridges the gap between research prototypes and software." },
-  { role: "AI Safety & Alignment Engineer", pay: "INR 25 – 65 LPA", desc: "Performs Red-Teaming and preference alignment (DPO)." },
-  { role: "MLOps/LLMOps Lead", pay: "INR 20 – 55 LPA", desc: "Automates CI/CD for local model retraining and deployment." },
-  { role: "AI Infrastructure Engineer", pay: "INR 25 – 55 LPA", desc: "Manages local GPU clusters, vLLM, and K3s orchestration." },
-  { role: "RAG Architect", pay: "INR 18 – 50 LPA", desc: "Designs advanced retrieval-augmented generation pipelines." },
-  { role: "LLM Engineer", pay: "INR 20 – 50 LPA", desc: "Specialist in LoRA fine-tuning and 4-bit quantization science." },
-  { role: "Agentic Systems Developer", pay: "INR 22 – 45 LPA", desc: "Builds multi-agent swarms and autonomous workflows." },
-  { role: "Computer Vision Engineer", pay: "INR 15 – 35 LPA", desc: "Builds local visual-reasoning and security monitoring systems." }
+  { role: "Sovereign AI Architect", pay: "INR 35 to 65+ LPA", desc: "Designs private, 17-layer 'Cyber Factories' for enterprises." },
+  { role: "CUDA Kernel Engineer", pay: "INR 40 to 60 LPA", desc: "Optimizes hardware-level model performance (60%+ gains)." },
+  { role: "Product-Minded AI Lead", pay: "INR 45 to 80+ LPA", desc: "Bridges the gap between research prototypes and software." },
+  { role: "AI Safety & Alignment Engineer", pay: "INR 25 to 65 LPA", desc: "Performs Red-Teaming and preference alignment (DPO)." },
+  { role: "MLOps/LLMOps Lead", pay: "INR 20 to 55 LPA", desc: "Automates CI/CD for local model retraining and deployment." },
+  { role: "AI Infrastructure Engineer", pay: "INR 25 to 55 LPA", desc: "Manages local GPU clusters, vLLM, and K3s orchestration." },
+  { role: "RAG Architect", pay: "INR 18 to 50 LPA", desc: "Designs advanced retrieval-augmented generation pipelines." },
+  { role: "LLM Engineer", pay: "INR 20 to 50 LPA", desc: "Specialist in LoRA fine-tuning and 4-bit quantization science." },
+  { role: "Agentic Systems Developer", pay: "INR 22 to 45 LPA", desc: "Builds multi-agent swarms and autonomous workflows." },
+  { role: "Computer Vision Engineer", pay: "INR 15 to 35 LPA", desc: "Builds local visual-reasoning and security monitoring systems." }
 ];
 
 export const PROJECTS = [
@@ -43,7 +43,7 @@ export const PROJECTS = [
 
 export const CURRICULUM = [
   {
-    phaseId: "p1", title: "Phase I: Hardware & Software Foundations", duration: "Months 1–4", goal: "Master the environment that hosts the Cyber Factory.",
+    phaseId: "p1", title: "Phase I: Hardware & Software Foundations", duration: "Months 1 to 4", goal: "Master the environment that hosts the Cyber Factory.",
     months: [
       {
         id: "m1", title: "Month 1: The Linux Shell & Hardware Provisioning",
@@ -100,7 +100,7 @@ export const CURRICULUM = [
     ]
   },
   {
-    phaseId: "p2", title: "Phase II: The AI Core - Mathematical Engines", duration: "Months 5–8", goal: "Master the 'why' behind model behavior.",
+    phaseId: "p2", title: "Phase II: The AI Core: Mathematical Engines", duration: "Months 5 to 8", goal: "Master the 'why' behind model behavior.",
     months: [
       {
         id: "m5", title: "Month 5: Linear Algebra & Matrix Calculus",
@@ -142,7 +142,7 @@ export const CURRICULUM = [
         iq: "IQ: Strategic Chess"
       },
       {
-        id: "m8", title: "Month 8: GitHub Mastery 2 - MLOps",
+        id: "m8", title: "Month 8: GitHub Mastery 2: MLOps",
         description: "Automate your infrastructure. Design CI/CD pipelines and security scanning workflows to deploy, test, and validate model updates autonomously without human intervention.",
         course: "Automate Workflows with GitHub Actions", link: "https://learn.microsoft.com/en-us/training/paths/github-actions/",
         weeks: [
@@ -157,7 +157,7 @@ export const CURRICULUM = [
     ]
   },
   {
-    phaseId: "p3", title: "Phase III: Deep Learning & Architectures", duration: "Months 9–12", goal: "Understanding the biological inspiration of AI.",
+    phaseId: "p3", title: "Phase III: Deep Learning & Architectures", duration: "Months 9 to 12", goal: "Understanding the biological inspiration of AI.",
     months: [
       {
         id: "m9", title: "Month 9: Python for AI Engineering",
@@ -214,12 +214,12 @@ export const CURRICULUM = [
     ]
   },
   {
-    phaseId: "p4", title: "Phase IV: Model Engineering & Optimization", duration: "Months 13–16", goal: "Become a 'Pro' by mastering local hardware efficiency.",
+    phaseId: "p4", title: "Phase IV: Model Engineering & Optimization", duration: "Months 13 to 16", goal: "Become a 'Pro' by mastering local hardware efficiency.",
     months: [
       {
         id: "m13", title: "Month 13: Parameter-Efficient Fine-Tuning",
         description: "Specialize your models efficiently. Master LoRA mathematics and adapter merging to inject highly specific domain knowledge into your base fleet without retraining.",
-        course: "Hugging Face LLM Course — Fine-tuning a Pretrained Model", link: "https://huggingface.co/learn/llm-course/chapter3/1",
+        course: "Hugging Face LLM Course: Fine-tuning a Pretrained Model", link: "https://huggingface.co/learn/llm-course/chapter3/1",
         weeks: [
           { id: "w1", text: "Week 1: Low-rank matrices" },
           { id: "w2", text: "Week 2: NF4 quantization" },
@@ -271,7 +271,7 @@ export const CURRICULUM = [
     ]
   },
   {
-    phaseId: "p5", title: "Phase V: Agentic Systems & Multi-Agent Swarms", duration: "Months 17–20", goal: "Autonomous logic and memory.",
+    phaseId: "p5", title: "Phase V: Agentic Systems & Multi-Agent Swarms", duration: "Months 17 to 20", goal: "Autonomous logic and memory.",
     months: [
       {
         id: "m17", title: "Month 17: Retrieval-Augmented Generation",
@@ -331,7 +331,7 @@ export const CURRICULUM = [
     ]
   },
   {
-    phaseId: "p6", title: "Phase VI: Distribution & Production Mastery", duration: "Months 21–24", goal: "Deploying AI as professional software.",
+    phaseId: "p6", title: "Phase VI: Distribution & Production Mastery", duration: "Months 21 to 24", goal: "Deploying AI as professional software.",
     months: [
       {
         id: "m21", title: "Month 21: Local Inference Engines",
@@ -349,7 +349,7 @@ export const CURRICULUM = [
       {
         id: "m22", title: "Month 22: Desktop Application Packaging",
         description: "Package AI into native software. Bundle your local inference engines into sleek, cross-platform desktop applications using the Rust programming language and Tauri.",
-        course: "Tauri 2 — Create a Project", link: "https://v2.tauri.app/start/create-project/",
+        course: "Tauri 2: Create a Project", link: "https://v2.tauri.app/start/create-project/",
         weeks: [
           { id: "w1", text: "Week 1: Bundling local AI" },
           { id: "w2", text: "Week 2: Cross-platform software (.dmg/.exe)" },
@@ -388,7 +388,7 @@ export const CURRICULUM = [
     ]
   },
   {
-    phaseId: "p7", title: "Phase VII: Career Launch", duration: "Months 25–26", goal: "Land your first AI infrastructure role.",
+    phaseId: "p7", title: "Phase VII: Career Launch", duration: "Months 25 to 26", goal: "Land your first AI infrastructure role.",
     months: [
       {
         id: "m25", title: "Month 25: Interview Blitz",

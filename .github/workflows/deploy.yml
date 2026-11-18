@@ -21,7 +21,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout (v2, this branch)
+      - name: Checkout (v3, this branch)
         uses: actions/checkout@v4
 
       - name: Checkout classic v1 (frozen tag, served at the site root)
@@ -30,23 +30,34 @@ jobs:
           ref: v1.0.0
           path: _classic
 
+      - name: Checkout v2 (frozen tag, served at /v2/)
+        uses: actions/checkout@v4
+        with:
+          ref: v2.0.0
+          path: _v2
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Build v2 (served at /v2/)
+      - name: Build v3 (served at /v3/)
         run: npm ci && npm test && npm run build
+
+      - name: Build v2
+        working-directory: _v2
+        run: npm ci --no-audit --no-fund && npm run build
 
       - name: Build classic v1
         working-directory: _classic
         run: npm install --no-audit --no-fund && npm run build
 
-      - name: Combine both builds
+      - name: Combine all three builds
         run: |
           mkdir -p _site
           cp -R _classic/dist/. _site/
-          cp -R dist _site/v2
+          cp -R _v2/dist _site/v2
+          cp -R dist _site/v3
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

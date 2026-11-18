@@ -1,14 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged, signInWithPopup, signInWithRedirect, getRedirectResult, signOut } from 'firebase/auth';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
-import { Briefcase, Code, Cloud, X, Zap } from 'lucide-react';
 import { auth, provider, db } from './firebase.js';
 import { JOBS, PROJECTS, CURRICULUM } from './data/curriculum.js';
 import { computeStats, findNextTask, mergeProgress, sameProgress, validateImport } from './lib/progress.js';
 import Nav from './components/Nav.jsx';
 import Curriculum from './components/Curriculum.jsx';
-import { ContinueCard, ProgressStrip } from './components/Dashboard.jsx';
-import { Jobs, Roadmap, ResetModal, Toast, Footer } from './components/Sections.jsx';
+import Head from './components/Dashboard.jsx';
+import { Guide, Jobs, Roadmap, ResetModal, Toast, Footer } from './components/Sections.jsx';
 
 const COLLECTION = 'datexia-lms';
 const LS_PROGRESS = 'lurnex-progress';
@@ -33,8 +32,7 @@ export default function App() {
     const t = lsGet(LS_THEME);
     return t ? t === 'dark' : !!window.matchMedia?.('(prefers-color-scheme: dark)').matches;
   });
-  const [activePhase, setActivePhase] = useState('p1');
-  const [activeMonth, setActiveMonth] = useState(null);
+  const [activeMonth, setActiveMonth] = useState(() => findNextTask(CURRICULUM, readLocal())?.monthId || 'm1');
   const [showReset, setShowReset] = useState(false);
   const [bannerOpen, setBannerOpen] = useState(() => lsGet(LS_BANNER) !== '1');
   const [toast, setToast] = useState(null);
@@ -100,12 +98,6 @@ export default function App() {
 
   const toggle = (key) => {
     const nextState = { ...progress, [key]: !progress[key] };
-    const monthId = key.split('_')[0];
-    const after = computeStats(CURRICULUM, nextState).months[monthId];
-    if (after?.complete && !stats.months[monthId]?.complete) {
-      const title = CURRICULUM.flatMap((p) => p.months).find((m) => m.id === monthId)?.title.split(':')[0];
-      notify(`${title} complete. Nicely done.`);
-    }
     save(nextState);
   };
 
@@ -145,55 +137,27 @@ export default function App() {
   };
 
   const scrollTo = (id) => setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'center' }), 350);
-  const jump = (t) => { setActivePhase(t.phaseId); setActiveMonth(t.monthId); scrollTo(`task-${t.key}`); };
-  const openPhase = (id) => { setActivePhase(id); scrollTo(`phase-${id}`); };
+  const jump = (t) => { setActiveMonth(t.monthId); scrollTo(`task-${t.key}`); };
 
   const dismissBanner = () => { setBannerOpen(false); lsSet(LS_BANNER, '1'); };
 
   return (
-    <div className="min-h-screen overflow-x-clip font-sans">
+    <>
+      <a className="skip textlink" href="#timetable">Skip to the timetable</a>
       <Nav user={user} percent={stats.percent} darkMode={darkMode} setDarkMode={setDarkMode} onSignIn={signIn} onSignOut={signOutUser}
         onExport={exportProgress} onImport={importProgress} onReset={() => setShowReset(true)} />
 
-      {!user && bannerOpen && (
-        <div className="border-b border-teal-500/20 bg-teal-500/10 px-4 py-2.5 text-sm">
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
-            <p className="flex items-center gap-2"><Cloud size={16} className="shrink-0 text-teal-600 dark:text-teal-400" /> Progress is saved in this browser. <button onClick={signIn} className="ring-focus rounded font-bold text-teal-700 underline underline-offset-2 dark:text-teal-300">Sign in with Google to sync across devices</button></p>
-            <button aria-label="Dismiss sign-in banner" onClick={dismissBanner} className="ring-focus rounded p-1 hover:bg-black/5 dark:hover:bg-white/10"><X size={16} /></button>
-          </div>
-        </div>
-      )}
-
-      <header className="relative overflow-hidden border-b border-slate-200 bg-white px-6 py-16 dark:border-slate-800 dark:bg-slate-900 md:py-24">
-        <div className="aurora" aria-hidden="true"><i /><i /><i /></div>
-        <div className="relative mx-auto max-w-4xl text-center">
-          <h2 className="mb-8 text-4xl font-black tracking-tight md:text-6xl">From API Consumer to<br /><span className="text-gradient">Sovereign Architect</span></h2>
-          <div className="mx-auto mb-10 max-w-3xl space-y-5 text-left text-lg leading-relaxed text-slate-600 dark:text-slate-400 md:text-xl">
-            <p>In 2026, privacy, latency and inference costs are pushing more teams toward self-hosted AI. This 26-month program takes you from the Unix shell to CUDA kernels and multi-agent systems, so you understand the stack instead of just calling it.</p>
-            <p>It pairs math from MIT and Harvard with hands-on GitHub, local-hardware and deployment practice. By the end you will not just be using AI. You will have built and shipped the system that runs it.</p>
-          </div>
-          <div className="flex flex-wrap justify-center gap-6 text-sm font-bold uppercase tracking-widest">
-            <div className="flex items-center gap-2"><Zap className="text-amber-500" /> 26 Months</div>
-            <div className="flex items-center gap-2"><Code className="text-teal-500" /> 26 Projects</div>
-            <div className="flex items-center gap-2"><Briefcase className="text-indigo-500" /> Career Launch</div>
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-7xl space-y-16 px-4 py-12 sm:px-6 md:space-y-20 md:py-16">
-        <div className="space-y-4">
-          <ContinueCard next={next} curriculum={CURRICULUM} onJump={jump} />
-          <ProgressStrip stats={stats} curriculum={CURRICULUM} onOpenPhase={openPhase} />
-        </div>
+      <main id="main" className="container main">
+        <Head user={user} bannerOpen={bannerOpen} onDismiss={dismissBanner} onSignIn={signIn} stats={stats} next={next} curriculum={CURRICULUM} onJump={jump} />
+        <Curriculum curriculum={CURRICULUM} progress={progress} stats={stats} onToggle={toggle} activeMonth={activeMonth} setActiveMonth={setActiveMonth} />
+        <Guide />
         <Jobs jobs={JOBS} />
         <Roadmap projects={PROJECTS} />
-        <Curriculum curriculum={CURRICULUM} progress={progress} stats={stats} onToggle={toggle}
-          activePhase={activePhase} setActivePhase={setActivePhase} activeMonth={activeMonth} setActiveMonth={setActiveMonth} />
       </main>
 
       <Footer />
       {showReset && <ResetModal onCancel={() => setShowReset(false)} onConfirm={reset} />}
       <Toast toast={toast} />
-    </div>
+    </>
   );
 }
